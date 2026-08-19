@@ -1,0 +1,253 @@
+everybody's talking about artificial
+intelligence these days AI machine
+learning is another Hot Topic are they
+the same thing or are they different and
+if so what are those differences and
+deep learning is another one that comes
+into play I actually did a video on
+these three artificial intelligence
+machine learning and deep learning and
+talked about where they fit and there
+were a lot of comments on that and I
+read those comments and I'd like to
+address some of the most frequently
+asked questions so that we clear up some
+of the myths and misconceptions around
+this in addition something else has
+happened since that video was recorded
+and that is this the absolute explosion
+of this area of generative AI things
+like large language models and chat Bots
+have seemed to be taking over the world
+we see them everywhere really
+interesting technology uh and then also
+things like deep fakes these are all
+within the realm of AI but how do they
+fit within each other how are they
+related to each other we're going to
+take a look at that in this video and
+try to explain how all these
+Technologies relate and how we can use
+them first off a little bit of a
+disclaimer I'm going to have to simplify
+some of these Concepts in order to not
+make this video last for a week so those
+of you that are really deep experts in
+the field apologies in advance but we're
+going to try to make this simple and and
+that will involve some generalizations
+first of all let's start with AI
+artificial intelligence is basically
+trying to simulate with a computer
+something that would match or exceed
+human intelligence what is intelligence
+well it could be a lot of different
+things but generally we tend to think of
+it as the ability to learn to infer and
+to reason things like that so that's
+what we're trying to do in the broad
+field of AI of artificial intelligence
+and if we look at a timeline of AI it
+really kind of started back around on
+this time frame and in those days it was
+very premature most people had not even
+heard of it uh and uh it basically was a
+research project but I can tell you uh
+as an undergrad which for me was back
+during these times uh we were doing AI
+work in fact we would use programming
+languages like lisp uh or prologue uh
+and these kinds of things uh were kind
+of the predecessors to what became later
+expert systems and this was a technology
+again some of these things existed
+previous but that's when it really uh
+hit kind of a critical mass and became
+more popularized so expert systems of
+the 1980s maybe in the 90s and and again
+we use Technologies like this all of
+this uh was was something that we did
+before we ever touched in to the next
+topic I'm going to talk about and that's
+the area of machine learning machine
+learning is as its name implies the
+machine is learning I don't have to
+program it I give it lots of information
+and and it observes things so for
+instance if I start doing this if I give
+you this and then ask you to predict
+what's the next thing that's going to be
+there well you might get it you might
+not you have very limited training data
+to base this on but if I gave you one of
+those and then ask you what to predict
+would happen next well you're probably
+going to say this and then you're going
+to say it's this and then you think you
+got it all figured out and then you see
+one of these and then all of a sudden I
+give you one of those and throw you a
+curveball so this in fact and then maybe
+it it goes on like this so a machine
+learning algorithm is really good at
+looking at patterns and discovering
+patterns within data the more training
+data you can give it the more confident
+it can be in predicting so predictions
+are one of the things that machine
+learning is is particularly good at
+another thing is spotting outliers like
+this and saying oh that doesn't belong
+in it looks different than all the other
+stuff because the sequence was broken so
+that's particularly useful in cyber
+security the area that I work in because
+we're looking for outliers we're looking
+for users who are using the system in
+ways that they shouldn't be or ways that
+they don't typically do so this
+technology machine learning is
+particularly useful for us and machine
+learning really came along uh and became
+more popularized uh in this time frame
+uh in the the 2010s uh and again uh back
+when I was an undergrad riding my
+dinosaur to class we were doing this
+kind of stuff we never once talked about
+machine learning it might have existed
+but it really wasn't hadn't hit the
+popular uh mindset yet uh but this
+technology has matured greatly over the
+last few decades and now it becomes the
+basis of a lot we do going forward the
+next layer of our Vin diagram involves
+deep learning well it's deep learning in
+the sense that with deep learning we use
+these things called neural networks
+neural networks are ways that in a
+computer we simulate and mimic the way
+the human brain works at least to the
+extent that we understand how the brain
+works and it's called Deep because we
+have multiple layers of those neural
+networks and the interesting thing about
+these is they will simulate the way a
+brain operates but I don't know if
+you've noticed but human brains can be a
+little bit unpredictable you put certain
+things in you don't always get the very
+same thing out and deep learning is the
+same way in some cases we're not
+actually able to fully understand why we
+get the results we do uh because there
+are so many layers to the neural network
+it's a little bit hard to to decompose
+and figure out exactly what's in there
+but this has become a very important
+part and a very important advancement
+that also reached some popularity during
+the 2010s and as something that we use
+still today as the basis for our next
+area of AI the most recent advancements
+in the field of artificial in
+intelligence all really are in this
+space the area of generative AI now I'm
+going to introduce a term that you may
+not be familiar with it's the idea of
+foundation models Foundation models is
+where we get some of these kinds of
+things for instance an example of a
+foundation model would be a large
+language model which is where we take
+language and we model it and we make
+predictions in this technology where if
+I see certain types of of words then I
+can sort of predict what the next set of
+words will be I'm going to oversimplify
+here for the sake of Simplicity but
+think about this as a little bit like
+the autoc complete when you start typing
+something in and then it predicts what
+your next word will be except in this
+case with large language models they're
+not predicting the next word they're
+predicting the next sentence the next
+paragraph the next entire document so
+there's a really an amazing exponential
+leap in what these things are able to do
+and we call all of these Technologies
+generative because they are generating
+new content um some people have actually
+made the argument that the generative AI
+isn't really generative that that these
+Technologies are really just
+regurgitating existing information and
+putting it in different format well let
+me give you an analogy um if you take
+music for instance then every note has
+already been invented so in a sense
+every song is just a recombination some
+other permutation of all the notes that
+already exist already and just putting
+them in a different order well we don't
+say new new music doesn't exist people
+are still composing and creating new
+songs from the existing information I'm
+going to say geni is similar it's a it's
+an analogy so there'll be some
+imperfections in it but you get the
+general idea actually new content can be
+generated out of these and there are a
+lot of different forms that this can
+take with other types of models are uh
+Audio models
+uh video models and things like that
+well in fact these we can use to create
+deep fakes and deep fakes are examples
+where we're able to take for instance a
+person's voice and recreate that and
+then have it seem like the person said
+things they never said well it's really
+useful in entertainment situations uh in
+parities and things like that uh or if
+someone's losing their voice then you
+could capture their voice and then
+they'd be able to type and you'd be able
+to hear it in their voice but there's
+also a lot of cases where this stuff
+could be abused um the chat Bots again
+come from this space the Deep fakes come
+from this space but they're all part of
+generative Ai and all part of these
+Foundation models and this again is the
+area that has really caused all of us to
+really pay attention to AI the
+possibilities of generating new content
+or in some cases summarizing existing
+content and giving us uh something that
+is bite-size and manageable this is what
+has gotten all of the attention this is
+where the chat Bots and all of these
+things come in in the early days ai's
+adoption started off pretty slowly most
+people didn't even know it existed and
+if they did it was something that always
+seemed like it was about 5 to 10 years
+away but then machine learning deep
+learning and things like that came along
+and we started seeing some uptake then
+Foundation models gen Ai and the light
+came along and this stuff went straight
+to the Moon
+these Foundation models are what have
+changed the adoption curve and now you
+see AI being adopted everywhere and the
+thing for us to understand is where this
+is where it fits in and make sure that
+we can reap the benefits from all of
+this
+technology if you like this video and
+want to see more like it please like And
+subscribe if you have any questions or
+want to share your thoughts about this
+topic please leave a comment below
