@@ -553,7 +553,7 @@ Through this project, the following concepts were implemented:
 
 **Mahadev Athani**
 
-AI & ML Engineer | Software Developer
+
 
 ---
 
