@@ -1,0 +1,14 @@
+﻿groq
+python-dotenv
+youtube-transcript-api
+yt-dlp
+sentence-transformers
+faiss-cpu
+streamlit
+youtube-transcript-api
+langchain-text-splitters
+sentence-transformers
+langchain-huggingface
+langchain-community
+langchain-core
+streamlit
