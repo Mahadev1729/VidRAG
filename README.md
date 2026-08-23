@@ -26,7 +26,7 @@ The user pastes a YouTube video URL, and the application retrieves the transcrip
 ## 🏗️ Architecture
 
 ```text
-                         YouTube URL
+                         YouTube URLs
                               │
                               ▼
                      Extract Video ID
