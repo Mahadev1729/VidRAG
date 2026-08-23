@@ -1,2 +1,2 @@
 ﻿[server]
-fileWatcherType = "none"
+headless = true
