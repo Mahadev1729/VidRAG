@@ -1,101 +1,126 @@
-﻿from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+﻿import re
+from pathlib import Path
 
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
-# ============================================================
-# Extract Video ID
-# ============================================================
+def extract_video_id(url):
+    """Extract the YouTube video ID from a URL."""
 
-def extract_video_id(url: str) -> str:
+    patterns = [
+        r"(?:v=)([A-Za-z0-9_-]{11})",
+        r"(?:youtu\.be/)([A-Za-z0-9_-]{11})",
+        r"(?:youtube\.com/embed/)([A-Za-z0-9_-]{11})",
+        r"(?:youtube\.com/shorts/)([A-Za-z0-9_-]{11})",
+    ]
 
-    parsed_url = urlparse(url)
-    hostname = parsed_url.hostname
+    for pattern in patterns:
+        match = re.search(pattern, url)
 
-    # --------------------------------------------------------
-    # Standard YouTube URL
-    # https://www.youtube.com/watch?v=VIDEO_ID
-    # --------------------------------------------------------
+        if match:
+            return match.group(1)
 
-    if hostname in ["www.youtube.com", "youtube.com"]:
+    raise ValueError("Invalid YouTube URL")
 
-        video_id = parse_qs(
-            parsed_url.query
-        ).get("v", [None])[0]
 
-        if video_id:
-            return video_id
+def get_transcript(url):
+    """
+    Get transcript from YouTube.
 
-    # --------------------------------------------------------
-    # Short YouTube URL
-    # https://youtu.be/VIDEO_ID
-    # --------------------------------------------------------
+    Priority:
+    1. English transcript
+    2. Manually created transcript in any language
+    3. Auto-generated transcript in any language
 
-    if hostname == "youtu.be":
+    No Whisper fallback.
+    """
 
-        video_id = (
-            parsed_url.path
-            .lstrip("/")
-            .split("/")[0]
+    video_id = extract_video_id(url)
+
+    try:
+        api = YouTubeTranscriptApi()
+
+        # Get all available transcripts
+        transcripts = api.list(video_id)
+
+        # -----------------------------------------
+        # 1. English transcript
+        # -----------------------------------------
+        for transcript in transcripts:
+
+            if transcript.language_code.startswith("en"):
+
+                fetched = transcript.fetch()
+
+                text = " ".join(
+                    item.text for item in fetched
+                )
+
+                if text.strip():
+                    return text
+
+        # -----------------------------------------
+        # 2. Manually created transcript
+        # -----------------------------------------
+        for transcript in transcripts:
+
+            if not transcript.is_generated:
+
+                fetched = transcript.fetch()
+
+                text = " ".join(
+                    item.text for item in fetched
+                )
+
+                if text.strip():
+                    return text
+
+        # -----------------------------------------
+        # 3. Auto-generated transcript
+        # -----------------------------------------
+        for transcript in transcripts:
+
+            if transcript.is_generated:
+
+                fetched = transcript.fetch()
+
+                text = " ".join(
+                    item.text for item in fetched
+                )
+
+                if text.strip():
+                    return text
+
+        raise ValueError(
+            "No usable transcript was found for this video."
         )
 
-        if video_id:
-            return video_id
+    except Exception as e:
 
-    raise ValueError(
-        "Invalid YouTube URL. "
-        "Please provide a valid YouTube video URL."
-    )
-
-
-# ============================================================
-# Get Transcript
-# ============================================================
-
-def get_transcript(video_id: str) -> str:
-
-    api = YouTubeTranscriptApi()
-
-    transcript = api.fetch(video_id)
-
-    text = "\n".join(
-        item.text
-        for item in transcript
-    )
-
-    return text
+        raise ValueError(
+            f"Could not retrieve transcript for video "
+            f"{url}: {str(e)}"
+        )
 
 
-# ============================================================
-# Save Transcript
-# ============================================================
+def save_transcript(text, video_id, output_dir="data/transcripts"):
+    """Save transcript text to a file."""
 
-def save_transcript(
-    video_id: str,
-    text: str,
-    base_dir: Path
-):
+    output_path = Path(output_dir)
 
-    output_dir = (
-        base_dir
-        / "data"
-        / "transcripts"
-    )
-
-    output_dir.mkdir(
+    output_path.mkdir(
         parents=True,
         exist_ok=True
     )
 
-    output_file = (
-        output_dir
-        / f"{video_id}.txt"
-    )
+    file_path = output_path / f"{video_id}.txt"
 
-    output_file.write_text(
-        text,
+    with open(
+        file_path,
+        "w",
         encoding="utf-8"
-    )
+    ) as file:
 
-    return output_file
+        file.write(text)
+
+    return str(file_path)
