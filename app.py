@@ -824,4 +824,4 @@ if st.session_state.video_id:
         st.write(
             f"**Approximate duration:** "
             f"{format_timestamp(duration)}"
-        )
+        ) 
