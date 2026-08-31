@@ -1,12 +1,3 @@
----
-title: YouTube RAG Chatbot
-emoji: 🎥
-colorFrom: blue
-colorTo: purple
-sdk: docker
-app_port: 7860
----
-
 # 🎥 YouTube RAG Chatbot
 
 An AI-powered YouTube Video Summarization and Question Answering system built using **Python, LangChain, FAISS, Hugging Face Embeddings, Groq, and Streamlit**.
