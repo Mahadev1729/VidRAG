@@ -1,4 +1,5 @@
 ﻿import os
+import uuid
 from pathlib import Path
 
 import streamlit as st
@@ -11,13 +12,108 @@ from youtube_loader import (
 )
 
 from chunker import create_documents
-from vector_store import create_vector_store
+
+from vector_store import (
+    create_vector_store,
+    load_vector_store,
+)
+
 from rag import answer_question
 from summarizer import summarize_video
 
+from chat_history import (
+    init_db,
+    save_message,
+    get_messages,
+    clear_messages,
+)
+
 
 # ============================================================
-# 1. HELPER FUNCTIONS
+# 1. PROJECT CONFIGURATION
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
+
+
+# ============================================================
+# 2. GROQ API KEY
+# ============================================================
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Streamlit Cloud Secrets fallback
+if not GROQ_API_KEY:
+    try:
+        GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
+    except Exception:
+        GROQ_API_KEY = None
+
+
+if not GROQ_API_KEY:
+    st.error("❌ GROQ_API_KEY is not configured.")
+
+    st.info(
+        "For local use, add GROQ_API_KEY to .env. "
+        "For Streamlit Cloud, add it under App Settings → Secrets."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# 3. INITIALIZE CHAT DATABASE
+# ============================================================
+
+init_db()
+
+
+# ============================================================
+# 4. STREAMLIT PAGE CONFIG
+# ============================================================
+
+st.set_page_config(
+    page_title="YouTube RAG Assistant",
+    page_icon="🎥",
+    layout="wide",
+)
+
+
+# ============================================================
+# 5. SESSION ID
+# ============================================================
+
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+
+# ============================================================
+# 6. SESSION STATE
+# ============================================================
+
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+
+if "documents" not in st.session_state:
+    st.session_state.documents = None
+
+if "video_id" not in st.session_state:
+    st.session_state.video_id = None
+
+if "summary" not in st.session_state:
+    st.session_state.summary = None
+
+if "youtube_url" not in st.session_state:
+    st.session_state.youtube_url = None
+
+if "transcript_segments" not in st.session_state:
+    st.session_state.transcript_segments = None
+
+
+# ============================================================
+# 7. HELPER FUNCTIONS
 # ============================================================
 
 def format_timestamp(seconds):
@@ -25,7 +121,7 @@ def format_timestamp(seconds):
     Convert seconds into MM:SS or HH:MM:SS.
     """
 
-    seconds = int(max(0, float(seconds)))
+    seconds = int(float(seconds))
 
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
@@ -50,8 +146,8 @@ def get_timestamp_for_position(
     position,
 ):
     """
-    Convert a character position in the transcript
-    to an approximate video timestamp.
+    Find approximate timestamp for a character
+    position in the full transcript.
     """
 
     current_position = 0
@@ -60,7 +156,6 @@ def get_timestamp_for_position(
 
         segment_text = segment["text"]
 
-        segment_start = current_position
         segment_end = (
             current_position
             + len(segment_text)
@@ -69,9 +164,7 @@ def get_timestamp_for_position(
         if position <= segment_end:
             return segment["start"]
 
-        current_position = (
-            segment_end + 1
-        )
+        current_position = segment_end + 1
 
     if transcript_segments:
         return transcript_segments[-1]["end"]
@@ -85,14 +178,11 @@ def add_timestamp_metadata(
     video_id,
 ):
     """
-    Add approximate start/end timestamps to
+    Add approximate timestamp metadata to
     LangChain documents.
     """
 
-    if not documents:
-        return
-
-    if not transcript_segments:
+    if not documents or not transcript_segments:
         return
 
     full_text = " ".join(
@@ -107,21 +197,16 @@ def add_timestamp_metadata(
 
     for document in documents:
 
-        chunk_text = (
-            document.page_content
-        )
+        chunk_text = document.page_content
 
         if not chunk_text:
             continue
 
-        # Find the chunk inside the complete transcript
         chunk_position = full_text.find(
             chunk_text,
             current_position,
         )
 
-        # If exact text is not found,
-        # use the current position as fallback.
         if chunk_position == -1:
             chunk_position = current_position
 
@@ -130,7 +215,6 @@ def add_timestamp_metadata(
             + len(chunk_text)
         )
 
-        # Convert character positions to timestamps
         start_time = get_timestamp_for_position(
             full_text,
             transcript_segments,
@@ -143,7 +227,6 @@ def add_timestamp_metadata(
             chunk_end,
         )
 
-        # Store timestamp metadata
         document.metadata["video_id"] = video_id
         document.metadata["start"] = start_time
         document.metadata["end"] = end_time
@@ -155,79 +238,10 @@ def add_timestamp_metadata(
 
 
 # ============================================================
-# 2. PROJECT CONFIGURATION
+# 8. TITLE
 # ============================================================
 
-BASE_DIR = Path(
-    __file__
-).resolve().parent
-
-
-# ============================================================
-# 3. STREAMLIT PAGE CONFIG
-# ============================================================
-
-st.set_page_config(
-    page_title="YouTube RAG Assistant",
-    page_icon="🎥",
-    layout="wide",
-)
-
-
-# ============================================================
-# 4. LOAD ENVIRONMENT VARIABLES
-# ============================================================
-
-# Local .env support
-load_dotenv(
-    BASE_DIR / ".env"
-)
-
-
-# ============================================================
-# 5. GET GROQ API KEY
-# ============================================================
-
-GROQ_API_KEY = os.getenv(
-    "GROQ_API_KEY"
-)
-
-# Streamlit Cloud Secrets support
-if not GROQ_API_KEY:
-
-    try:
-
-        GROQ_API_KEY = st.secrets.get(
-            "GROQ_API_KEY"
-        )
-
-    except Exception:
-
-        GROQ_API_KEY = None
-
-
-if not GROQ_API_KEY:
-
-    st.error(
-        "GROQ_API_KEY is not configured."
-    )
-
-    st.info(
-        "For local development, add GROQ_API_KEY "
-        "to your .env file. For Streamlit Cloud, "
-        "add GROQ_API_KEY under App Settings → Secrets."
-    )
-
-    st.stop()
-
-
-# ============================================================
-# 6. TITLE
-# ============================================================
-
-st.title(
-    "🎥 YouTube RAG Assistant"
-)
+st.title("🎥 YouTube RAG Assistant")
 
 st.write(
     "Paste a YouTube video URL to summarize the video "
@@ -236,42 +250,20 @@ st.write(
 
 
 # ============================================================
-# 7. SESSION STATE
-# ============================================================
-
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
-
-if "documents" not in st.session_state:
-    st.session_state.documents = None
-
-if "video_id" not in st.session_state:
-    st.session_state.video_id = None
-
-if "summary" not in st.session_state:
-    st.session_state.summary = None
-
-if "youtube_url" not in st.session_state:
-    st.session_state.youtube_url = None
-
-if "transcript_segments" not in st.session_state:
-    st.session_state.transcript_segments = None
-
-
-# ============================================================
-# 8. YOUTUBE URL INPUT
+# 9. YOUTUBE URL
 # ============================================================
 
 youtube_url = st.text_input(
     "🔗 YouTube Video URL",
     placeholder=(
-        "https://www.youtube.com/watch?v=..."
+        "https://www.youtube.com/watch?v=... "
+        "or https://youtu.be/..."
     ),
 )
 
 
 # ============================================================
-# 9. PROCESS VIDEO BUTTON
+# 10. PROCESS VIDEO
 # ============================================================
 
 process_button = st.button(
@@ -279,10 +271,6 @@ process_button = st.button(
     type="primary",
 )
 
-
-# ============================================================
-# 10. PROCESS VIDEO
-# ============================================================
 
 if process_button:
 
@@ -297,7 +285,7 @@ if process_button:
         try:
 
             # =================================================
-            # STEP 1: EXTRACT VIDEO ID
+            # STEP 1 — EXTRACT VIDEO ID
             # =================================================
 
             with st.spinner(
@@ -308,13 +296,8 @@ if process_button:
                     youtube_url
                 )
 
-            st.session_state.video_id = (
-                video_id
-            )
-
-            st.session_state.youtube_url = (
-                youtube_url
-            )
+            st.session_state.video_id = video_id
+            st.session_state.youtube_url = youtube_url
 
             st.info(
                 f"🎬 Video ID: `{video_id}`"
@@ -322,174 +305,7 @@ if process_button:
 
 
             # =================================================
-            # STEP 2: GET TRANSCRIPT + TIMESTAMPS
-            # =================================================
-
-            with st.spinner(
-                "Fetching YouTube transcript..."
-            ):
-
-                transcript_segments = (
-                    get_transcript_with_timestamps(
-                        youtube_url
-                    )
-                )
-
-
-            if not transcript_segments:
-
-                st.error(
-                    "No transcript segments were found."
-                )
-
-                st.stop()
-
-
-            # =================================================
-            # CONVERT SEGMENTS TO PLAIN TEXT
-            # =================================================
-
-            transcript = " ".join(
-                segment["text"]
-                for segment in transcript_segments
-            )
-
-
-            if not transcript.strip():
-
-                st.error(
-                    "The transcript is empty."
-                )
-
-                st.stop()
-
-
-            # Store timestamped transcript
-            st.session_state.transcript_segments = (
-                transcript_segments
-            )
-
-
-            st.success(
-                "✅ Transcript retrieved successfully!"
-            )
-
-
-            # =================================================
-            # TRANSCRIPT INFORMATION
-            # =================================================
-
-            total_segments = len(
-                transcript_segments
-            )
-
-            video_duration = (
-                transcript_segments[-1]["end"]
-            )
-
-
-            st.info(
-                f"📝 Transcript segments: "
-                f"{total_segments}"
-            )
-
-            st.info(
-                f"⏱️ Approximate video duration: "
-                f"{format_timestamp(video_duration)}"
-            )
-
-
-            # =================================================
-            # STEP 3: SAVE TRANSCRIPT
-            # =================================================
-
-            with st.spinner(
-                "Saving transcript..."
-            ):
-
-                transcript_dir = (
-                    BASE_DIR
-                    / "data"
-                    / "transcripts"
-                )
-
-                transcript_path = (
-                    save_transcript(
-                        transcript,
-                        video_id,
-                        transcript_dir,
-                    )
-                )
-
-
-            st.success(
-                "✅ Transcript saved successfully!"
-            )
-
-
-            # =================================================
-            # STEP 4: CREATE DOCUMENT CHUNKS
-            # =================================================
-
-            with st.spinner(
-                "Splitting transcript into chunks..."
-            ):
-
-                documents = create_documents(
-                    transcript,
-                    video_id,
-                )
-
-
-            if not documents:
-
-                st.error(
-                    "No document chunks were created."
-                )
-
-                st.stop()
-
-
-            # =================================================
-            # ADD TIMESTAMP METADATA
-            # =================================================
-
-            add_timestamp_metadata(
-                documents,
-                transcript_segments,
-                video_id,
-            )
-
-
-            st.info(
-                f"📚 Created {len(documents)} chunks."
-            )
-
-
-            # =================================================
-            # STEP 5: CREATE VECTOR STORE
-            # =================================================
-
-            with st.spinner(
-                "Creating embeddings and FAISS index..."
-            ):
-
-                vector_store = create_vector_store(
-                    documents
-                )
-
-
-            if vector_store is None:
-
-                st.error(
-                    "Failed to create FAISS vector store."
-                )
-
-                st.stop()
-
-
-            # =================================================
-            # STEP 6: SAVE VECTOR STORE
+            # STEP 2 — INDEX PATH
             # =================================================
 
             index_dir = (
@@ -499,61 +315,330 @@ if process_button:
                 / video_id
             )
 
-
-            index_dir.mkdir(
-                parents=True,
-                exist_ok=True,
+            index_file = (
+                index_dir
+                / "index.faiss"
             )
 
-
-            vector_store.save_local(
-                str(index_dir)
+            pkl_file = (
+                index_dir
+                / "index.pkl"
             )
 
-
-            st.success(
-                "✅ FAISS vector store created successfully!"
-            )
-
-
-            # =================================================
-            # STEP 7: STORE IN SESSION STATE
-            # =================================================
-
-            st.session_state.vector_store = (
-                vector_store
-            )
-
-            st.session_state.documents = (
-                documents
+            existing_index = (
+                index_file.exists()
+                and pkl_file.exists()
             )
 
 
             # =================================================
-            # STEP 8: GENERATE SUMMARY
+            # STEP 3 — EXISTING VECTOR STORE
             # =================================================
 
-            with st.spinner(
-                "Generating video summary..."
-            ):
+            if existing_index:
 
-                summary = summarize_video(
+                st.info(
+                    "♻️ Existing FAISS index found. "
+                    "Loading saved vector store..."
+                )
+
+                with st.spinner(
+                    "Loading existing vector store..."
+                ):
+
+                    vector_store = load_vector_store(
+                        index_dir
+                    )
+
+                st.session_state.vector_store = vector_store
+
+
+                # ---------------------------------------------
+                # Load transcript for timestamps
+                # ---------------------------------------------
+
+                with st.spinner(
+                    "Loading transcript information..."
+                ):
+
+                    transcript_segments = (
+                        get_transcript_with_timestamps(
+                            youtube_url
+                        )
+                    )
+
+                st.session_state.transcript_segments = (
+                    transcript_segments
+                )
+
+
+                # ---------------------------------------------
+                # Load saved summary
+                # ---------------------------------------------
+
+                summary_file = (
+                    BASE_DIR
+                    / "data"
+                    / "summaries"
+                    / f"{video_id}.txt"
+                )
+
+                if summary_file.exists():
+
+                    with open(
+                        summary_file,
+                        "r",
+                        encoding="utf-8",
+                    ) as file:
+
+                        st.session_state.summary = (
+                            file.read()
+                        )
+
+                st.success(
+                    "♻️ Existing video data loaded successfully!"
+                )
+
+
+            # =================================================
+            # STEP 4 — NEW VIDEO
+            # =================================================
+
+            else:
+
+                # ---------------------------------------------
+                # Get transcript
+                # ---------------------------------------------
+
+                with st.spinner(
+                    "Fetching YouTube transcript..."
+                ):
+
+                    transcript_segments = (
+                        get_transcript_with_timestamps(
+                            youtube_url
+                        )
+                    )
+
+                if not transcript_segments:
+
+                    st.error(
+                        "No transcript was found."
+                    )
+
+                    st.stop()
+
+
+                st.session_state.transcript_segments = (
+                    transcript_segments
+                )
+
+
+                # ---------------------------------------------
+                # Convert segments to text
+                # ---------------------------------------------
+
+                transcript = " ".join(
+                    segment["text"]
+                    for segment in transcript_segments
+                )
+
+
+                if not transcript.strip():
+
+                    st.error(
+                        "Transcript is empty."
+                    )
+
+                    st.stop()
+
+
+                st.success(
+                    "✅ Transcript retrieved successfully!"
+                )
+
+
+                # ---------------------------------------------
+                # Duration
+                # ---------------------------------------------
+
+                duration = (
+                    transcript_segments[-1]["end"]
+                )
+
+                st.info(
+                    f"⏱️ Approximate duration: "
+                    f"{format_timestamp(duration)}"
+                )
+
+
+                # =================================================
+                # STEP 5 — SAVE TRANSCRIPT
+                # =================================================
+
+                transcript_dir = (
+                    BASE_DIR
+                    / "data"
+                    / "transcripts"
+                )
+
+                transcript_dir.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+
+                with st.spinner(
+                    "Saving transcript..."
+                ):
+
+                    save_transcript(
+                        transcript,
+                        video_id,
+                        transcript_dir,
+                    )
+
+
+                # =================================================
+                # STEP 6 — CHUNKING
+                # =================================================
+
+                with st.spinner(
+                    "Splitting transcript into chunks..."
+                ):
+
+                    documents = create_documents(
+                        transcript,
+                        video_id,
+                    )
+
+
+                if not documents:
+
+                    st.error(
+                        "No chunks were created."
+                    )
+
+                    st.stop()
+
+
+                st.info(
+                    f"📚 Created {len(documents)} chunks."
+                )
+
+
+                # =================================================
+                # STEP 7 — TIMESTAMP METADATA
+                # =================================================
+
+                add_timestamp_metadata(
+                    documents,
+                    transcript_segments,
+                    video_id,
+                )
+
+
+                # =================================================
+                # STEP 8 — CREATE VECTOR STORE
+                # =================================================
+
+                with st.spinner(
+                    "Creating embeddings and FAISS index..."
+                ):
+
+                    vector_store = create_vector_store(
+                        documents
+                    )
+
+
+                if vector_store is None:
+
+                    st.error(
+                        "Failed to create vector store."
+                    )
+
+                    st.stop()
+
+
+                # =================================================
+                # STEP 9 — SAVE FAISS
+                # =================================================
+
+                index_dir.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+
+                vector_store.save_local(
+                    str(index_dir)
+                )
+
+
+                st.success(
+                    "✅ FAISS index saved successfully!"
+                )
+
+
+                # =================================================
+                # STEP 10 — SESSION STATE
+                # =================================================
+
+                st.session_state.vector_store = (
+                    vector_store
+                )
+
+                st.session_state.documents = (
                     documents
                 )
 
 
-            st.session_state.summary = (
-                summary
-            )
+                # =================================================
+                # STEP 11 — SUMMARY
+                # =================================================
+
+                with st.spinner(
+                    "Generating video summary..."
+                ):
+
+                    summary = summarize_video(
+                        documents
+                    )
 
 
-            # =================================================
-            # FINAL SUCCESS
-            # =================================================
+                st.session_state.summary = summary
 
-            st.success(
-                "🎉 Video processed successfully!"
-            )
+
+                # =================================================
+                # STEP 12 — SAVE SUMMARY
+                # =================================================
+
+                summary_dir = (
+                    BASE_DIR
+                    / "data"
+                    / "summaries"
+                )
+
+                summary_dir.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
+
+                summary_file = (
+                    summary_dir
+                    / f"{video_id}.txt"
+                )
+
+                with open(
+                    summary_file,
+                    "w",
+                    encoding="utf-8",
+                ) as file:
+
+                    file.write(summary)
+
+
+                st.success(
+                    "🎉 Video processed successfully!"
+                )
 
 
         except Exception as e:
@@ -566,7 +651,7 @@ if process_button:
 
 
 # ============================================================
-# 11. DISPLAY SUMMARY
+# 11. SUMMARY
 # ============================================================
 
 if st.session_state.summary:
@@ -583,7 +668,55 @@ if st.session_state.summary:
 
 
 # ============================================================
-# 12. QUESTION ANSWERING
+# 12. CHAT HISTORY
+# ============================================================
+
+if st.session_state.video_id:
+
+    messages = get_messages(
+        st.session_state.session_id,
+        st.session_state.video_id,
+    )
+
+    if messages:
+
+        st.divider()
+
+        st.subheader(
+            "💬 Conversation History"
+        )
+
+        for role, message in messages:
+
+            if role == "user":
+
+                with st.chat_message("user"):
+
+                    st.write(message)
+
+            elif role == "assistant":
+
+                with st.chat_message("assistant"):
+
+                    st.write(message)
+
+
+        # ---------------------------------------------
+        # Clear Chat
+        # ---------------------------------------------
+
+        if st.button("🗑️ Clear Chat"):
+
+            clear_messages(
+                st.session_state.session_id,
+                st.session_state.video_id,
+            )
+
+            st.rerun()
+
+
+# ============================================================
+# 13. ASK QUESTIONS
 # ============================================================
 
 st.divider()
@@ -608,9 +741,9 @@ ask_button = st.button(
 
 if ask_button:
 
-    # --------------------------------------------------------
-    # Check vector store
-    # --------------------------------------------------------
+    # ========================================================
+    # CHECK VECTOR STORE
+    # ========================================================
 
     if st.session_state.vector_store is None:
 
@@ -619,9 +752,9 @@ if ask_button:
         )
 
 
-    # --------------------------------------------------------
-    # Check question
-    # --------------------------------------------------------
+    # ========================================================
+    # CHECK QUESTION
+    # ========================================================
 
     elif not question.strip():
 
@@ -635,7 +768,19 @@ if ask_button:
         try:
 
             # =================================================
-            # GENERATE ANSWER
+            # SAVE USER QUESTION
+            # =================================================
+
+            save_message(
+                st.session_state.session_id,
+                st.session_state.video_id,
+                "user",
+                question,
+            )
+
+
+            # =================================================
+            # RAG
             # =================================================
 
             with st.spinner(
@@ -649,6 +794,18 @@ if ask_button:
 
 
             # =================================================
+            # SAVE AI ANSWER
+            # =================================================
+
+            save_message(
+                st.session_state.session_id,
+                st.session_state.video_id,
+                "assistant",
+                answer,
+            )
+
+
+            # =================================================
             # DISPLAY ANSWER
             # =================================================
 
@@ -656,13 +813,11 @@ if ask_button:
                 "🤖 Answer"
             )
 
-            st.write(
-                answer
-            )
+            st.write(answer)
 
 
             # =================================================
-            # RETRIEVE RELEVANT DOCUMENTS
+            # TIMESTAMP SOURCES
             # =================================================
 
             source_documents = (
@@ -673,10 +828,6 @@ if ask_button:
                 )
             )
 
-
-            # =================================================
-            # DISPLAY SOURCES
-            # =================================================
 
             if source_documents:
 
@@ -710,24 +861,18 @@ if ask_button:
                     )
 
 
-                    # Prevent duplicate sources
-                    timestamp_key = (
-                        start_seconds
-                    )
-
-
-                    if timestamp_key in displayed_times:
+                    if start_seconds in displayed_times:
 
                         continue
 
 
                     displayed_times.add(
-                        timestamp_key
+                        start_seconds
                     )
 
 
                     # -----------------------------------------
-                    # Format timestamp
+                    # Time display
                     # -----------------------------------------
 
                     if end is not None:
@@ -752,7 +897,7 @@ if ask_button:
 
 
                     # -----------------------------------------
-                    # Create YouTube timestamp URL
+                    # YouTube timestamp URL
                     # -----------------------------------------
 
                     source_url = (
@@ -763,7 +908,7 @@ if ask_button:
 
 
                     # -----------------------------------------
-                    # Display source
+                    # Display
                     # -----------------------------------------
 
                     st.markdown(
@@ -788,7 +933,7 @@ if ask_button:
 
 
 # ============================================================
-# 13. VIDEO INFORMATION
+# 14. VIDEO INFORMATION
 # ============================================================
 
 if st.session_state.video_id:
@@ -798,7 +943,6 @@ if st.session_state.video_id:
     st.subheader(
         "ℹ️ Video Information"
     )
-
 
     st.write(
         f"**Video ID:** "
@@ -817,11 +961,10 @@ if st.session_state.video_id:
     if st.session_state.transcript_segments:
 
         duration = (
-            st.session_state
-            .transcript_segments[-1]["end"]
+            st.session_state.transcript_segments[-1]["end"]
         )
 
         st.write(
             f"**Approximate duration:** "
             f"{format_timestamp(duration)}"
-        ) 
+        )
