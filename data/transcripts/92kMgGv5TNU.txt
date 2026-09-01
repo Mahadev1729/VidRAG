@@ -1,0 +1,442 @@
+Major sign that the US may be losing its
+AI advantage to China.
+>> China is beginning to engage in what
+I'll call AI dumping. About a third of
+corporations are supposedly using
+Chinese lightweight open-weight models
+that [music] are cheaper. If I were she,
+I would just dump cheap AI into the US
+market. I think the US market crashes
+and we're immediately in a recession.
+[music]
+>> The open models are not as far behind as
+we thought. A new Chinese model just
+beat Claude.
+>> [music]
+>> It honestly might be over for Claude and
+ChatGPT. Kimiko free was just released
+and this changes everything we know
+about the Chinese open-source models.
+Because just look at the benchmarks.
+Kimiko free is right up there with Fable
+5 and GPT 5.6, which is absolutely
+insane considering it's an open-source
+model. And you can even see in many of
+the benchmarks it actually scores over
+GPT 5.6. And in [music] the benchmark
+program bench, it actually ranks higher
+than both GPT and Fable. Same in this
+benchmark right here as well. However,
+you should know by now that the
+benchmarks don't tell the entire truth.
+So, is Kimiko free actually as good as
+these benchmarks say it is? The results
+might surprise you. If you don't know
+me, my name is Albert. I didn't start
+out technical, but because I learned how
+to use AI, I've built two million-dollar
+companies. Not because I'm the smartest,
+I just learned how to use AI. And now
+we're making AI education free for
+everyone. So, if you haven't already,
+make sure to subscribe. By the end of
+this video, you'll know if Kimiko free
+is actually as good as people say it is
+and if we need to be canceling our
+Claude plans cuz it honestly might seem
+like we have to. Let's not waste any
+more time. Let's get into it. We have
+already taken a look at the benchmarks,
+which looks absolutely insane. I
+honestly couldn't believe this when I
+saw them the first time because this is
+completely changing how we should look
+at open-source models. Let me explain
+why. Chimera-3 is almost a 3 trillion
+parameter model, which is by far the
+largest open-source model ever created.
+You can see Deep Seek right here, which
+is in second place, is a 1.6 trillion
+parameter model. Chimera-3 is almost
+twice as large. It's honestly insane
+some of the things that people have
+built with this. Someone even built a
+black hole. These are some of the
+coolest things that people have built,
+but we of course need to be doing our
+own tests, know if it's actually a model
+that we should be using. And we're going
+to be doing that in just a second. To
+test this model, we're going to be using
+Chimera Code, which is the absolute best
+for what we're trying to build in this
+video, which is going to be absolutely
+insane. To install it, we're just going
+to search for Chimera Code, click on the
+top link, and this gives us this code
+right here that we can just copy into
+our terminal. So, I'm going to go back
+into Visual Studio Code, and in the top
+I'm going to click terminal, new
+terminal,
+and I'm just going to paste this in to
+install Chimera. After it's installed,
+we need to restart our terminal, so we
+can just close this down, and then I'll
+open up a new terminal,
+and then we can write Chimera and hit
+enter. And now you can see we're inside
+of Chimera Code. We can just write
+{slash} login now, and then login with a
+Chimera account. This will open up our
+browser, and here we can just
+authenticate. You can see login
+successful.
+And if we go back, you can see it says
+login. One of the most important things
+is of course the pricing of these coding
+tools. And as you probably know by now,
+Claude Pro is $20 a month. But one of
+the biggest bottlenecks with Claude in
+general is the usage limits, especially
+if you're using Fable, which is what's
+on the benchmarks, you're going to be
+running into rate limits almost
+instantly. And soon Fable will also only
+be available on the Max plan, which is
+$100 a month. But that shouldn't come as
+a surprise, Claude is expensive. When it
+comes to Codex, you need the $20 a month
+plan. But to be fair, with Codex you do
+get a lot of usage. However, with
+Chimera you can get started for $15 a
+month. So, I'll say Chimera wins there.
+To do a fair test, I'll create three
+folders. I'm going to create a a folder
+that I called Chimera,
+and I'm going to create another folder
+that I'm going to call Claude. And the
+last folder is going to become Codex.
+Those are the three models that we'll be
+testing in this video. I'm going to go
+out of this session now, and then I'm
+going to CD, basically go into the
+folder of Kimmy, and same here, CD into
+Claude, and same here, CD into Codex.
+And then we can just rename these to be
+Codex, to be Claude, and to be Kimmy.
+Now we have all of the sessions. Now of
+course have subscriptions to absolutely
+everything. So we can open up Kimmy code
+in this folder, Claude in this folder,
+and Codex in this folder. And the first
+thing we're going to do is that we're
+going to test out the Kimmy model,
+because I haven't even tested it yet
+before making this video. Is it as good
+as people say it is? Well, let's find
+out. So I'm going to give it an improved
+prompt by saying, "Please build an
+improved prompt for building out a video
+game. I want a one-to-one replica of
+Pac-Man with all of the features that
+Pac-Man should have, and the styling, so
+we get that one-to-one replica. Please
+build out that improved prompt." Claude
+is then going to build out an improved
+prompt for us, like that. You can see it
+has all of the things that should be
+included in Pac-Man. So now we can just
+hit enter. I'm very excited to see what
+Kimmy can build from just this. And of
+course we also need to remember to set
+it to the right model. Right now it's
+set to Kimmy 2.7, but we need to write
+{slash} model, and then of course set it
+to K3. Run the prompt again. Of course
+it's important that we actually use the
+right model. I'm very excited to see
+what it builds. Great, it is now
+finished. Let's restart it. It looks
+like we have a fully functioning Pac-Man
+game. We even have the sound effects as
+well. Going to turn those off though.
+This looks very, very good. I'm very
+impressed with how well this turned out.
+This looks very impressive. What about
+all the small details like being able to
+go over like through the other side
+right here? It has basically built it
+perfect one-to-one. Very, very
+impressive. However, not the best at
+Pac-Man. Time to compare as well with
+Claude and Codex. Here we have the game
+that Claude built. Looks similar,
+however it is a little smaller, but it
+is also a fully functioning Pac-Man. So
+Claude definitely also did very well on
+that. Very impressive. And for the last
+one, let's do Codex revealing finder.
+I'm going to do this one of as well. All
+right, here we have insert coin. So,
+this has done a little more in terms of
+that. I don't know if I like that. I
+didn't ask it to do this.
+Insert coin.
+All right. Oh.
+This doesn't look very good. The frames
+on this is very bad. You can see the the
+game is way more slow-paced. And we just
+went through a wall right here. Again,
+very buggy. So, Kimmy and Claude
+definitely wins that. I didn't actually
+expect that. I thought Codex would
+perform very well here as well. But, we
+are running into the walls. It's very
+laggy.
+The frames are very bad on this.
+Very interesting. I want to do another
+test, which is one of the use cases I
+use AI for the most, which is front-end
+design. So, let's try and give a prompt
+again. We tell all of the models to
+build out a clean website. Uh write an
+improved prompt for a very, very clean
+website for a dental dental business. It
+should include all of the the images as
+well. It should have a very high
+converting form at the bottom. Include
+all of the sections that a high
+converting website has. And please do a
+detailed description of the theme that
+should be very futuristic and very
+modern. Write an improved prompt for
+that. Code type will write out the
+improved prompt, so we can use that for
+every single model. This looks very,
+very good. So, let's give that to Kimmy.
+And let me copy this
+and give it to Claude as well, and to
+Codex as well. The exact same prompt.
+And let's see how they perform. All
+three models have now made a detailed
+plan of what they want to build. So,
+let's ask it to build it out in Next.js.
+Please build out this website in a new
+folder in Next.js and Tailwind CSS. Make
+it clean with good animations. All
+models have now made a design of a
+website. So, I'm going to tell them to
+build it out. Please build out this
+website in Next.js and Tailwind CSS.
+That's all we need to give it.
+Transcribe that. Hit enter. And then I'm
+just going to copy this
+and paste it into Claude and Codex as
+well.
+And now we're going to have three
+different websites. And I'm very excited
+to see which one actually does the best
+job when it comes to front-end design,
+which is very important for me when I'm
+building our stuff. Very excited to see
+the results. There we go. All three
+models are now done. Let's start with
+Kimmi that's running in localhost:3000.
+And initial experience looks very, very
+clean. No intro animations, however, but
+if we scroll, then we have some
+animations. All of this looks extremely
+clean. I'm very impressed with the
+images that we have right here. This
+looks very cool as well, and you can see
+it's the sign so we can insert our own
+images. We have a testimonial section.
+We have our dentists. This is an
+extremely clean website that we could
+probably sell for anywhere around 500 to
+1,000 bucks. It's also a high-converting
+website. It's not like we get
+overwhelmed when we go to it. Overall, a
+very, very professional website made by
+Kimmi in literally just a couple of
+minutes. And everything on the website
+is also working. We have clean
+animations, very, very complete from
+start to finish. Very impressed that we
+can build all of this, and we can build
+a bunch of websites like this for 15
+bucks a month. Let's look at the others.
+This is Claude Code. Also looks very
+good. Claude Code has actually gone in
+and found its own images, which looks
+nice. And then at the top we have this
+bar right here, which because I said it
+should be high-converting, is actually a
+good idea. This will convert more
+people, get more people to call. Also,
+right off the bat, a very good website
+for a local business. We have Google
+reviews right here. We have our
+services. Book free consultation takes
+into the form at the bottom, which also
+looks good. Let us scroll through. This
+looks good, too. Almost a bit too many
+different services, I'll say. Would
+almost overwhelm the customer. Then we
+have a dark mode section. This looks
+cool. This one right here, before and
+after, also looks cool. But of course,
+we would need to insert a good image
+right here. Then we have the people, the
+testimonial section. All of this
+looks very, very good. I almost like the
+other one better. We've been used to
+Claude Code absolutely dominating with
+front-end, but like this almost look
+better than this, in my opinion. It's
+more minimalistic. I actually like
+Kimmi's better. How interesting. Claude
+has already been best front end. And
+let's try Codex and see how that looks.
+Codex went with a bit of a different
+vibe. Still looks good. We have this
+little 4.9 out of five down here in the
+bottom right corner. Very impressed with
+all of these models, by the way, that
+they can create such a good website. But
+that's also because we gave it quite a
+good prompt. Then we have this card
+right here. This feeling, the feeling is
+mutual. Also a very clean website. It's
+modern, it's good, it looks
+professional. However, some of the
+things are kind of off, like this text
+up here is too small. This number right
+here, like you wouldn't really get
+people to to uh to click this.
+Kind of a small website. I'll almost
+like it better if it was like a bit
+zoomed in. But of course it's not like
+that. It's almost like Codex in general
+has bit of a worse taste when it comes
+to design. And that's also why I've
+always used Claude code when it comes to
+the design before that. But like Kimmy
+is up there. I would say it's definitely
+just as good as Claude code when it
+comes to front end design. And that's
+absolutely insane. And I wanted to check
+my usage as well with Kimmy. And so far
+we've only used 5% of our 5-hour usage
+and 0.7%
+of our total usage. That is pretty
+insane. Kimmy is definitely up there,
+but let's talk about how I'm actually
+going to use it in my business and how
+you should use it, too. Should we cancel
+our Claude plans now? Well, let me tell
+you. Something very interesting is
+happening right now and all of a sudden
+I understand why after testing Kimmy
+myself in this video. This graph shows
+the Chinese AI models and how much
+they're used by US companies. And what
+you'll be able to see is this is
+skyrocketing right now. US companies are
+switching from the US model providers to
+the Chinese model providers, like Kimmy,
+like Deep Seek, like GLM. And why is
+that? Well, the main reason is because
+it's much, much cheaper. If we search up
+Fable 5 pricing and go to Claude's
+website, you can see that it's $10 per
+million tokens input and $50 per million
+tokens output. And if you look at the
+Kimmy K4 pricing, it's $3 per million
+tokens input and $15 per million tokens
+output. So it is much, much cheaper, 1/3
+of the price. So, it makes really good
+sense why people are switching when it's
+even less than 1/3 of the cost. But,
+what does this mean for us? Does this
+mean that I should go in and cancel my
+$200 a month Claude plan? It depends.
+Let me explain. Fable 5, which I still
+think is the best model right now, will
+only be available if you're paying $100
+a month for Claude. And if you're using
+it via the API, then it's even more
+expensive. So, if you're like the
+regular AI user that spends $20 a month
+on a subscription, I would honestly
+recommend Kimiko over Claude. Because
+with a $20 a month Claude subscription,
+you will not have Fable 5, and you run
+into usage limits very, very quickly.
+However, I'm on the basic Kimiko plan
+right now, and my usage is looking
+really, really good. Usually, I have
+recommended CodeX if you only wanted to
+pay $20 a month, but honestly, Kimiko 3
+is kind of just better. We proved that
+with both the video game and the
+front-end design. And if you told me
+that an open-source model like Kimiko
+would have been so good just like a
+month ago, I wouldn't have believed you.
+And this is both incredibly frightening,
+but also pretty good for us consumers.
+Let me explain why. Unless you've been
+living under a rock, then you know that
+companies like OpenAI and Anthropic has
+been raising an insane amount of money.
+Like, in March this year, OpenAI raised
+$122 billion.
+Surprise, these companies are not making
+any profit. They are investing heavily
+into the future of AI, which means they
+have been depending on being the
+frontier models, being the best models
+in the game. Can you guess what will
+happen when a new model like Kimiko then
+comes out? It's open-source, which means
+that everyone has access to it, everyone
+can see what's going on behind the
+scenes, and it's 1/3 of the cost. So, I
+don't know if that's not very good for
+the companies that are investing heavily
+into their closed frontier models that
+they have spent billions and billions
+and billions of dollars developing. And
+don't get me wrong, it's good for us
+consumers. Competition makes even better
+models, and it brings down the price so
+we can have affordable AI. And that's
+also how I'll be using these models in
+my business. If there's an AI model
+that's just as good but 1/3 of the cost,
+I don't really care where it's coming
+from. I'll be using it. And I think you
+should, too. And on top of that, it's
+open-source. You could, if you had a
+million-dollar computer, run Kimiko free
+locally. Of course, that's probably not
+realistic, but you can still go and see
+the code of what's actually in that
+model, which is also pretty exciting.
+What's really important is that you stay
+up-to-date with all of these new AI
+things that is happening in the world.
+If you want to stay updated, then you
+should check out our AI community with
+165,000
+members. In here, you stay updated on
+AI, and we have full courses taking you
+through how to build a business with AI.
+I'll leave a link right below in the
+description. Thank you guys so much for
+watching. If you watched till the end,
+then remember to subscribe, and as
+always, have a wonderful rest of the
+day.
