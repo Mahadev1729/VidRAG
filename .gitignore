@@ -1,6 +1,24 @@
-﻿.env
+﻿# Secrets
+.env
+
+# Python
 venv/
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Data — keep indexes and transcripts, ignore audio (large temp files)
+data/audio/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
 data/

@@ -1,4 +1,4 @@
-﻿groq
+groq
 python-dotenv
 youtube-transcript-api
 streamlit
@@ -8,3 +8,5 @@ langchain-text-splitters
 langchain-huggingface
 sentence-transformers
 faiss-cpu
+yt-dlp
+openai-whisper
