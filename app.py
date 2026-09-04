@@ -203,6 +203,92 @@ st.markdown(
         font-size: 1.05rem;
     }
 
+    .workflow {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .75rem;
+        margin: 1.1rem 0 2rem;
+    }
+
+    .workflow-step {
+        display: flex;
+        align-items: center;
+        gap: .7rem;
+        min-height: 3.2rem;
+        padding: .7rem .85rem;
+        border: 1px solid rgba(8, 127, 120, .12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .58);
+        color: #49615f;
+        font-size: .86rem;
+        font-weight: 600;
+    }
+
+    .workflow-number {
+        display: grid;
+        flex: 0 0 1.8rem;
+        width: 1.8rem;
+        height: 1.8rem;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--teal);
+        color: white;
+        font-size: .76rem;
+        font-weight: 700;
+    }
+
+    .active-video {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: .25rem 0 1.8rem;
+        padding: .8rem 1rem;
+        border-left: 3px solid var(--coral);
+        border-radius: 0 10px 10px 0;
+        background: rgba(255, 255, 255, .7);
+        color: var(--muted);
+        font-size: .86rem;
+    }
+
+    .active-video strong { color: var(--ink); }
+
+    .source-row {
+        margin: .45rem 0;
+        padding: .7rem .85rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .58);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .7rem;
+        margin-top: 1rem;
+    }
+
+    .info-item {
+        padding: .8rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .58);
+    }
+
+    .info-item-label {
+        color: var(--muted);
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .info-item-value {
+        margin-top: .35rem;
+        color: var(--ink);
+        font-weight: 700;
+    }
+
     [data-testid="stTextInput"] input {
         min-height: 3rem;
         border: 1px solid var(--line);
@@ -251,6 +337,8 @@ st.markdown(
         .block-container { padding: 1.25rem 1rem 2.5rem; }
         .hero { padding: 1.5rem 1.25rem 1.65rem; border-radius: 14px; }
         .hero-copy { font-size: .95rem; }
+        .workflow, .info-grid { grid-template-columns: 1fr; }
+        .active-video { align-items: flex-start; flex-direction: column; gap: .25rem; }
     }
     </style>
     """,
@@ -403,6 +491,28 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown(
+    """
+    <div class="workflow" aria-label="How the assistant works">
+        <div class="workflow-step"><span class="workflow-number">1</span>Bring a video</div>
+        <div class="workflow-step"><span class="workflow-number">2</span>Build your knowledge base</div>
+        <div class="workflow-step"><span class="workflow-number">3</span>Ask with evidence</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+if st.session_state.video_id:
+    st.markdown(
+        f"""
+        <div class="active-video">
+            <span>Active video</span>
+            <strong>{st.session_state.video_id}</strong>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -689,9 +799,14 @@ if ask_button:
                     )
 
                     st.markdown(
-                        f"**Source {source_number}:** "
-                        f"`{time_text}` → "
-                        f"[▶ Watch at {format_timestamp(start_seconds)}]({source_url})"
+                        f"""
+                        <div class="source-row">
+                            <strong>Source {source_number}</strong>&nbsp;&nbsp;
+                            <code>{time_text}</code>&nbsp;&nbsp;→&nbsp;&nbsp;
+                            <a href="{source_url}" target="_blank">Watch at {format_timestamp(start_seconds)}</a>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
                     )
                     source_number += 1
 
@@ -706,21 +821,33 @@ if ask_button:
 
 if st.session_state.video_id:
     st.divider()
-    st.subheader("ℹ️ Video Information")
+    st.markdown('<p class="section-label">At a glance</p>',
+                unsafe_allow_html=True)
+    st.subheader("Video information")
 
-    st.write(f"**Video ID:** `{st.session_state.video_id}`")
-
-    if st.session_state.documents:
-        st.write(f"**Number of chunks:** {len(st.session_state.documents)}")
-
+    duration_text = "Pending"
     if st.session_state.transcript_segments:
-        duration = st.session_state.transcript_segments[-1]["end"]
-        st.write(f"**Approximate duration:** {format_timestamp(duration)}")
+        duration_text = format_timestamp(
+            st.session_state.transcript_segments[-1]["end"])
 
+    source_text = "Pending"
     if st.session_state.transcript_source:
-        label = (
-            "Whisper (audio transcription)"
+        source_text = (
+            "Whisper transcription"
             if st.session_state.transcript_source == "whisper"
             else "YouTube captions"
         )
-        st.write(f"**Transcript source:** {label}")
+
+    chunk_text = str(len(st.session_state.documents)
+                     ) if st.session_state.documents else "Pending"
+    st.markdown(
+        f"""
+        <div class="info-grid">
+            <div class="info-item"><div class="info-item-label">Video ID</div><div class="info-item-value">{st.session_state.video_id}</div></div>
+            <div class="info-item"><div class="info-item-label">Duration</div><div class="info-item-value">{duration_text}</div></div>
+            <div class="info-item"><div class="info-item-label">Knowledge chunks</div><div class="info-item-value">{chunk_text}</div></div>
+        </div>
+        <div class="meta-pill">Transcript: {source_text}</div>
+        """,
+        unsafe_allow_html=True,
+    )
