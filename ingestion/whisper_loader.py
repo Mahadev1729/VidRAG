@@ -138,6 +138,11 @@ def download_audio(
     ydl_opts = {
         "format":    "bestaudio/best",
         "outtmpl":   output_template,
+        "js_runtimes": {"node": {}},
+        "retries":    3,
+        "fragment_retries": 3,
+        "extractor_retries": 3,
+        "socket_timeout": 30,
         "postprocessors": [
             {
                 "key":              "FFmpegExtractAudio",
@@ -170,7 +175,8 @@ def download_audio(
             ) from error
         raise WhisperTranscriptionError(
             "Failed to download audio from YouTube. "
-            "The video may be restricted or blocked in your region."
+            "The video may be restricted or blocked in your region. "
+            f"Downloader details: {error}"
         ) from error
 
     except Exception as error:
@@ -256,13 +262,14 @@ def transcribe_audio(
 
     segments = []
     for item in raw_segments:
-        text     = (item.get("text") or "").strip()
+        text = (item.get("text") or "").strip()
         if not text:
             continue
-        start    = float(item.get("start", 0))
-        end      = float(item.get("end", start))
+        start = float(item.get("start", 0))
+        end = float(item.get("end", start))
         duration = max(end - start, 0.0)
-        segments.append({"text": text, "start": start, "duration": duration, "end": end})
+        segments.append({"text": text, "start": start,
+                        "duration": duration, "end": end})
 
     if not segments:
         raise WhisperTranscriptionError(
