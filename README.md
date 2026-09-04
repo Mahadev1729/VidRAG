@@ -179,6 +179,18 @@ streamlit run app.py
 | `TOP_K` | `4` | Number of chunks retrieved per question |
 | `FORCE_WHISPER_FALLBACK` | `0` | Set to `1` to skip YouTube captions and test Whisper |
 
+## Optional User Authentication
+
+Authentication uses Streamlit's OIDC support. To enable it:
+
+1. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml`.
+2. Create an OIDC application with Google or another compatible identity provider.
+3. Replace the client values in `secrets.toml` and set the correct production redirect URI.
+4. Set `AUTH_ENABLED=true` in `.env` or your deployment environment.
+
+Authentication is disabled by default for local development. Never commit
+`.streamlit/secrets.toml` or place credentials in source code.
+
 ---
 
 ## How It Works

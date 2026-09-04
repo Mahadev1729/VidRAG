@@ -44,6 +44,13 @@ load_dotenv(BASE_DIR / ".env")
 # ── API Keys ──────────────────────────────────────────────────────────────────
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 
+# Authentication is opt-in so local development continues to work without
+# an identity provider. Enable it with AUTH_ENABLED=true after configuring
+# the [auth] section in Streamlit secrets.
+AUTH_ENABLED: bool = os.getenv("AUTH_ENABLED", "false").strip().lower() in {
+    "1", "true", "yes"
+}
+
 
 # ── Model Names ───────────────────────────────────────────────────────────────
 # To switch to a different Groq model, change GROQ_MODEL here (or in .env).
