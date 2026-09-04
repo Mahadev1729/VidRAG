@@ -289,8 +289,14 @@ st.markdown(
         font-weight: 700;
     }
 
+    [data-testid="stTextInput"] {
+        width: 100%;
+    }
+
     [data-testid="stTextInput"] input {
         min-height: 3rem;
+        width: 100%;
+        box-sizing: border-box;
         border: 1px solid var(--line);
         border-radius: 10px;
         background: rgba(255, 255, 255, .86);
@@ -303,6 +309,7 @@ st.markdown(
 
     [data-testid="stButton"] button {
         min-height: 3rem;
+        width: 100%;
         border-radius: 10px;
         font-weight: 700;
     }
@@ -339,6 +346,11 @@ st.markdown(
         .hero-copy { font-size: .95rem; }
         .workflow, .info-grid { grid-template-columns: 1fr; }
         .active-video { align-items: flex-start; flex-direction: column; gap: .25rem; }
+        [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+        }
     }
     </style>
     """,
@@ -526,7 +538,6 @@ with url_column:
     youtube_url = st.text_input(
         "YouTube Video URL",
         placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...",
-        label_visibility="collapsed",
     )
 with action_column:
     process_button = st.button(
@@ -725,7 +736,6 @@ with question_column:
     question = st.text_input(
         "Your question",
         placeholder="What is the main idea of this video?",
-        label_visibility="collapsed",
     )
 with ask_column:
     ask_button = st.button("Ask question", use_container_width=True)
