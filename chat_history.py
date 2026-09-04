@@ -5,28 +5,27 @@ from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent
 
-DEFAULT_DB_PATH = BASE_DIR / "data" / "chat_history.db"
+DB_PATH = BASE_DIR / "data" / "chat_history.db"
 
 
-def get_connection(db_path=None):
+def get_connection():
     """
     Create SQLite database connection.
     """
-    db_path = Path(db_path or DEFAULT_DB_PATH)
-    db_path.parent.mkdir(
+    DB_PATH.parent.mkdir(
         parents=True,
         exist_ok=True
     )
 
-    return sqlite3.connect(db_path)
+    return sqlite3.connect(DB_PATH)
 
 
-def init_db(db_path=None):
+def init_db():
     """
     Create chat history table if it does not exist.
     """
 
-    conn = get_connection(db_path)
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -49,14 +48,13 @@ def save_message(
     session_id,
     video_id,
     role,
-    message,
-    db_path=None,
+    message
 ):
     """
     Save one chat message.
     """
 
-    conn = get_connection(db_path)
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -87,14 +85,13 @@ def save_message(
 
 def get_messages(
     session_id,
-    video_id,
-    db_path=None,
+    video_id
 ):
     """
     Get chat messages for a session and video.
     """
 
-    conn = get_connection(db_path)
+    conn = get_connection()
 
     cursor = conn.cursor()
 
@@ -121,14 +118,13 @@ def get_messages(
 
 def clear_messages(
     session_id,
-    video_id,
-    db_path=None,
+    video_id
 ):
     """
     Delete chat history for a session and video.
     """
 
-    conn = get_connection(db_path)
+    conn = get_connection()
 
     cursor = conn.cursor()
 

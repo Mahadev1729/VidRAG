@@ -44,14 +44,6 @@ load_dotenv(BASE_DIR / ".env")
 # ── API Keys ──────────────────────────────────────────────────────────────────
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 
-# Authentication is opt-in so local development continues to work without
-# an identity provider. Enable it with AUTH_ENABLED=true after configuring
-# the [auth] section in Streamlit secrets.
-AUTH_ENABLED: bool = os.getenv("AUTH_ENABLED", "false").strip().lower() in {
-    "1", "true", "yes"
-}
-
-
 # ── Model Names ───────────────────────────────────────────────────────────────
 # To switch to a different Groq model, change GROQ_MODEL here (or in .env).
 # No other file needs to know the model name.
@@ -72,7 +64,7 @@ WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "base")
 # CHUNK_SIZE:    max characters per chunk sent to the embedding model
 # CHUNK_OVERLAP: characters of overlap between adjacent chunks
 #                (prevents context being cut at chunk boundaries)
-CHUNK_SIZE: int    = int(os.getenv("CHUNK_SIZE",    "1000"))
+CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE",    "1000"))
 CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
 
 
@@ -83,15 +75,15 @@ TOP_K: int = int(os.getenv("TOP_K", "4"))
 
 
 # ── Data Directories ──────────────────────────────────────────────────────────
-DATA_DIR        = BASE_DIR / "data"
+DATA_DIR = BASE_DIR / "data"
 TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
-AUDIO_DIR       = DATA_DIR / "audio"
-INDEXES_DIR     = DATA_DIR / "indexes"
-SUMMARIES_DIR   = DATA_DIR / "summaries"
+AUDIO_DIR = DATA_DIR / "audio"
+INDEXES_DIR = DATA_DIR / "indexes"
+SUMMARIES_DIR = DATA_DIR / "summaries"
 
 
 # ── Summarisation ─────────────────────────────────────────────────────────────
 # Groq has token-per-minute limits.  We split long transcripts
 # before summarising to stay within those limits.
-SUMMARY_MAX_CHARS: int      = int(os.getenv("SUMMARY_MAX_CHARS",      "6000"))
-SUMMARY_REQUEST_DELAY: int  = int(os.getenv("SUMMARY_REQUEST_DELAY",  "5"))
+SUMMARY_MAX_CHARS: int = int(os.getenv("SUMMARY_MAX_CHARS",      "6000"))
+SUMMARY_REQUEST_DELAY: int = int(os.getenv("SUMMARY_REQUEST_DELAY",  "5"))

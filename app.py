@@ -30,7 +30,6 @@ st.session_state   → for per-USER, per-SESSION data
                      Specific to one browser tab. Cleared on page refresh.
 """
 
-import hashlib
 import os
 import uuid
 from pathlib import Path
@@ -39,9 +38,10 @@ import streamlit as st
 
 # ── Config ────────────────────────────────────────────────────────────────────
 from config import (
-    AUTH_ENABLED,
     GROQ_API_KEY,
-    DATA_DIR,
+    INDEXES_DIR,
+    SUMMARIES_DIR,
+    TRANSCRIPTS_DIR,
 )
 
 # ── Ingestion ─────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ from chat_history import (
 
 
 # ============================================================
-# 1. PAGE CONFIG + AUTHENTICATION
+# 1. PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
@@ -84,29 +84,6 @@ st.set_page_config(
     page_icon="🎥",
     layout="wide",
 )
-
-
-def require_authentication() -> str:
-    """Require OIDC login when authentication is enabled."""
-    if not AUTH_ENABLED:
-        return "local"
-
-    if not st.user.is_logged_in:
-        st.title("YouTube RAG Assistant")
-        st.write("Sign in to summarize videos and ask questions.")
-        st.button("Sign in", type="primary", on_click=st.login)
-        st.stop()
-
-    user_id = st.user.get("sub") or st.user.get("email") or st.user.get("name")
-    if not user_id:
-        st.error("Your identity provider did not return a usable user ID.")
-        st.button("Sign out", on_click=st.logout)
-        st.stop()
-
-    return str(user_id)
-
-
-authenticated_user_id = require_authentication()
 
 
 # ============================================================
@@ -135,23 +112,10 @@ if not GROQ_API_KEY and not os.environ.get("GROQ_API_KEY"):
 
 
 # ============================================================
-# 3. USER WORKSPACE
+# 3. DATABASE
 # ============================================================
 
-def get_user_workspace(user_id: str) -> Path:
-    """Return a private, filesystem-safe workspace for one user."""
-    user_key = hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:32]
-    workspace = DATA_DIR / "users" / user_key
-    workspace.mkdir(parents=True, exist_ok=True)
-    return workspace
-
-
-USER_WORKSPACE = get_user_workspace(authenticated_user_id)
-USER_INDEXES_DIR = USER_WORKSPACE / "indexes"
-USER_SUMMARIES_DIR = USER_WORKSPACE / "summaries"
-USER_TRANSCRIPTS_DIR = USER_WORKSPACE / "transcripts"
-USER_DB_PATH = USER_WORKSPACE / "chat_history.db"
-init_db(USER_DB_PATH)
+init_db()
 
 st.markdown(
     """
@@ -302,7 +266,7 @@ st.markdown(
 # Session state persists values across those re-runs for the same user.
 
 defaults = {
-    "session_id":         f"{authenticated_user_id}:{uuid.uuid4()}",
+    "session_id":         str(uuid.uuid4()),
     "vector_store":       None,
     "documents":          None,
     "video_id":           None,
@@ -316,16 +280,10 @@ for key, value in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-if AUTH_ENABLED:
-    with st.sidebar:
-        st.caption(
-            f"Signed in as {st.user.get('name') or st.user.get('email')}")
-        st.button("Sign out", on_click=st.logout, use_container_width=True)
-
-
 # ============================================================
 # 4. HELPER FUNCTIONS (UI utilities — belong in app.py)
 # ============================================================
+
 
 def format_timestamp(seconds) -> str:
     """Convert seconds to MM:SS or HH:MM:SS display string."""
@@ -486,7 +444,7 @@ if process_button:
             st.info(f"🎬 Video ID: `{video_id}`")
 
             # ── Step 2: Check for existing FAISS index ────────────────────────
-            index_dir = USER_INDEXES_DIR / video_id
+            index_dir = INDEXES_DIR / video_id
             index_file = index_dir / "index.faiss"
             pkl_file = index_dir / "index.pkl"
             existing = index_file.exists() and pkl_file.exists()
@@ -509,7 +467,7 @@ if process_button:
                 show_transcript_source_message(source)
 
                 # Load saved summary if available
-                summary_file = USER_SUMMARIES_DIR / f"{video_id}.txt"
+                summary_file = SUMMARIES_DIR / f"{video_id}.txt"
                 if summary_file.exists():
                     st.session_state.summary = summary_file.read_text(
                         encoding="utf-8")
@@ -541,9 +499,9 @@ if process_button:
                     f"⏱️ Approximate duration: {format_timestamp(duration)}")
 
                 # Save transcript to disk
-                USER_TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+                TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
                 with st.spinner("Saving transcript..."):
-                    save_transcript(transcript, video_id, USER_TRANSCRIPTS_DIR)
+                    save_transcript(transcript, video_id, TRANSCRIPTS_DIR)
 
                 # Chunk
                 with st.spinner("Splitting transcript into chunks..."):
@@ -583,8 +541,8 @@ if process_button:
                 st.session_state.summary = summary
 
                 # Save summary
-                USER_SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
-                (USER_SUMMARIES_DIR / f"{video_id}.txt").write_text(
+                SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
+                (SUMMARIES_DIR / f"{video_id}.txt").write_text(
                     summary, encoding="utf-8"
                 )
 
@@ -625,7 +583,6 @@ if st.session_state.video_id:
     messages = get_messages(
         st.session_state.session_id,
         st.session_state.video_id,
-        USER_DB_PATH,
     )
 
     if messages:
@@ -640,7 +597,6 @@ if st.session_state.video_id:
             clear_messages(
                 st.session_state.session_id,
                 st.session_state.video_id,
-                USER_DB_PATH,
             )
             st.rerun()
 
@@ -680,7 +636,6 @@ if ask_button:
                 st.session_state.video_id,
                 "user",
                 question,
-                USER_DB_PATH,
             )
 
             # RAG: retrieve + answer (returns answer AND source docs in one call)
@@ -696,7 +651,6 @@ if ask_button:
                 st.session_state.video_id,
                 "assistant",
                 answer,
-                USER_DB_PATH,
             )
 
             # Display answer
