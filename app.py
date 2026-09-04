@@ -30,6 +30,7 @@ st.session_state   → for per-USER, per-SESSION data
                      Specific to one browser tab. Cleared on page refresh.
 """
 
+import hashlib
 import os
 import uuid
 from pathlib import Path
@@ -40,10 +41,7 @@ import streamlit as st
 from config import (
     AUTH_ENABLED,
     GROQ_API_KEY,
-    BASE_DIR,
-    INDEXES_DIR,
-    SUMMARIES_DIR,
-    TRANSCRIPTS_DIR,
+    DATA_DIR,
 )
 
 # ── Ingestion ─────────────────────────────────────────────────────────────────
@@ -78,35 +76,8 @@ from chat_history import (
 
 
 # ============================================================
-# 1. API KEY CHECK
+# 1. PAGE CONFIG + AUTHENTICATION
 # ============================================================
-# config.py loads the key from .env.  We check it here before
-# rendering any UI — if it is missing we stop immediately with
-# a clear error message.
-
-if not GROQ_API_KEY:
-    # Streamlit Cloud Secrets fallback
-    try:
-        _secret = st.secrets.get("GROQ_API_KEY", "")
-        if _secret:
-            os.environ["GROQ_API_KEY"] = _secret
-    except Exception:
-        pass
-
-if not GROQ_API_KEY and not os.environ.get("GROQ_API_KEY"):
-    st.error("❌ GROQ_API_KEY is not configured.")
-    st.info(
-        "For local use, add GROQ_API_KEY to .env. "
-        "For Streamlit Cloud, add it under App Settings → Secrets."
-    )
-    st.stop()
-
-
-# ============================================================
-# 2. DATABASE + PAGE CONFIG
-# ============================================================
-
-init_db()
 
 st.set_page_config(
     page_title="YouTube RAG Assistant",
@@ -136,6 +107,51 @@ def require_authentication() -> str:
 
 
 authenticated_user_id = require_authentication()
+
+
+# ============================================================
+# 2. API KEY CHECK
+# ============================================================
+# config.py loads the key from .env.  We check it here before
+# rendering any UI — if it is missing we stop immediately with
+# a clear error message.
+
+if not GROQ_API_KEY:
+    # Streamlit Cloud Secrets fallback
+    try:
+        _secret = st.secrets.get("GROQ_API_KEY", "")
+        if _secret:
+            os.environ["GROQ_API_KEY"] = _secret
+    except Exception:
+        pass
+
+if not GROQ_API_KEY and not os.environ.get("GROQ_API_KEY"):
+    st.error("❌ GROQ_API_KEY is not configured.")
+    st.info(
+        "For local use, add GROQ_API_KEY to .env. "
+        "For Streamlit Cloud, add it under App Settings → Secrets."
+    )
+    st.stop()
+
+
+# ============================================================
+# 3. USER WORKSPACE
+# ============================================================
+
+def get_user_workspace(user_id: str) -> Path:
+    """Return a private, filesystem-safe workspace for one user."""
+    user_key = hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:32]
+    workspace = DATA_DIR / "users" / user_key
+    workspace.mkdir(parents=True, exist_ok=True)
+    return workspace
+
+
+USER_WORKSPACE = get_user_workspace(authenticated_user_id)
+USER_INDEXES_DIR = USER_WORKSPACE / "indexes"
+USER_SUMMARIES_DIR = USER_WORKSPACE / "summaries"
+USER_TRANSCRIPTS_DIR = USER_WORKSPACE / "transcripts"
+USER_DB_PATH = USER_WORKSPACE / "chat_history.db"
+init_db(USER_DB_PATH)
 
 st.markdown(
     """
@@ -302,7 +318,8 @@ for key, value in defaults.items():
 
 if AUTH_ENABLED:
     with st.sidebar:
-        st.caption(f"Signed in as {st.user.get('name') or st.user.get('email')}")
+        st.caption(
+            f"Signed in as {st.user.get('name') or st.user.get('email')}")
         st.button("Sign out", on_click=st.logout, use_container_width=True)
 
 
@@ -469,7 +486,7 @@ if process_button:
             st.info(f"🎬 Video ID: `{video_id}`")
 
             # ── Step 2: Check for existing FAISS index ────────────────────────
-            index_dir = INDEXES_DIR / video_id
+            index_dir = USER_INDEXES_DIR / video_id
             index_file = index_dir / "index.faiss"
             pkl_file = index_dir / "index.pkl"
             existing = index_file.exists() and pkl_file.exists()
@@ -492,7 +509,7 @@ if process_button:
                 show_transcript_source_message(source)
 
                 # Load saved summary if available
-                summary_file = SUMMARIES_DIR / f"{video_id}.txt"
+                summary_file = USER_SUMMARIES_DIR / f"{video_id}.txt"
                 if summary_file.exists():
                     st.session_state.summary = summary_file.read_text(
                         encoding="utf-8")
@@ -524,9 +541,9 @@ if process_button:
                     f"⏱️ Approximate duration: {format_timestamp(duration)}")
 
                 # Save transcript to disk
-                TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+                USER_TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
                 with st.spinner("Saving transcript..."):
-                    save_transcript(transcript, video_id, TRANSCRIPTS_DIR)
+                    save_transcript(transcript, video_id, USER_TRANSCRIPTS_DIR)
 
                 # Chunk
                 with st.spinner("Splitting transcript into chunks..."):
@@ -566,8 +583,8 @@ if process_button:
                 st.session_state.summary = summary
 
                 # Save summary
-                SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
-                (SUMMARIES_DIR / f"{video_id}.txt").write_text(
+                USER_SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
+                (USER_SUMMARIES_DIR / f"{video_id}.txt").write_text(
                     summary, encoding="utf-8"
                 )
 
@@ -608,6 +625,7 @@ if st.session_state.video_id:
     messages = get_messages(
         st.session_state.session_id,
         st.session_state.video_id,
+        USER_DB_PATH,
     )
 
     if messages:
@@ -622,6 +640,7 @@ if st.session_state.video_id:
             clear_messages(
                 st.session_state.session_id,
                 st.session_state.video_id,
+                USER_DB_PATH,
             )
             st.rerun()
 
@@ -661,6 +680,7 @@ if ask_button:
                 st.session_state.video_id,
                 "user",
                 question,
+                USER_DB_PATH,
             )
 
             # RAG: retrieve + answer (returns answer AND source docs in one call)
@@ -676,6 +696,7 @@ if ask_button:
                 st.session_state.video_id,
                 "assistant",
                 answer,
+                USER_DB_PATH,
             )
 
             # Display answer

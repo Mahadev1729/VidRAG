@@ -168,16 +168,16 @@ streamlit run app.py
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `GROQ_API_KEY` | — | **Required.** Your Groq API key |
-| `GROQ_MODEL` | `openai/gpt-oss-20b` | Groq model name |
-| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model |
-| `WHISPER_MODEL` | `base` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
-| `CHUNK_SIZE` | `1000` | Characters per transcript chunk |
-| `CHUNK_OVERLAP` | `200` | Overlap between adjacent chunks |
-| `TOP_K` | `4` | Number of chunks retrieved per question |
-| `FORCE_WHISPER_FALLBACK` | `0` | Set to `1` to skip YouTube captions and test Whisper |
+| Variable                 | Default                                  | Description                                                     |
+| ------------------------ | ---------------------------------------- | --------------------------------------------------------------- |
+| `GROQ_API_KEY`           | —                                        | **Required.** Your Groq API key                                 |
+| `GROQ_MODEL`             | `openai/gpt-oss-20b`                     | Groq model name                                                 |
+| `EMBEDDING_MODEL`        | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model                                                 |
+| `WHISPER_MODEL`          | `base`                                   | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
+| `CHUNK_SIZE`             | `1000`                                   | Characters per transcript chunk                                 |
+| `CHUNK_OVERLAP`          | `200`                                    | Overlap between adjacent chunks                                 |
+| `TOP_K`                  | `4`                                      | Number of chunks retrieved per question                         |
+| `FORCE_WHISPER_FALLBACK` | `0`                                      | Set to `1` to skip YouTube captions and test Whisper            |
 
 ## Optional User Authentication
 
@@ -190,6 +190,16 @@ Authentication uses Streamlit's OIDC support. To enable it:
 
 Authentication is disabled by default for local development. Never commit
 `.streamlit/secrets.toml` or place credentials in source code.
+
+Account creation is handled by the configured identity provider. For Google
+OIDC, a first-time visitor can choose **Create account** on Google's sign-in
+page. The application shows the video-processing page only after the provider
+returns a successful login.
+
+After login, each user receives a private workspace under
+`data/users/<user-key>/`. The user key is a one-way hash of the provider's
+stable user ID. Chat history, transcripts, summaries, and FAISS indexes are
+stored in that workspace and are not shared with other users.
 
 ---
 
@@ -210,6 +220,7 @@ If captions fail for any reason (disabled, unavailable, parse error):
 - Audio file is deleted immediately after transcription
 
 Both paths return the same structure:
+
 ```python
 [{"text": "...", "start": 120.5, "duration": 4.2, "end": 124.7}]
 ```
@@ -263,18 +274,18 @@ Timestamps are stored in **metadata only** — never embedded into the vector �
 
 ## Technology Stack
 
-| Component | Technology |
-|---|---|
-| UI | Streamlit |
-| Transcript API | youtube-transcript-api |
-| Audio download | yt-dlp |
-| Speech-to-text | openai-whisper (local) |
+| Component      | Technology                               |
+| -------------- | ---------------------------------------- |
+| UI             | Streamlit                                |
+| Transcript API | youtube-transcript-api                   |
+| Audio download | yt-dlp                                   |
+| Speech-to-text | openai-whisper (local)                   |
 | Text splitting | LangChain RecursiveCharacterTextSplitter |
-| Embeddings | sentence-transformers / all-MiniLM-L6-v2 |
-| Vector store | FAISS (faiss-cpu) |
-| LLM | Groq |
-| Chat history | SQLite |
-| Config | python-dotenv |
+| Embeddings     | sentence-transformers / all-MiniLM-L6-v2 |
+| Vector store   | FAISS (faiss-cpu)                        |
+| LLM            | Groq                                     |
+| Chat history   | SQLite                                   |
+| Config         | python-dotenv                            |
 
 ---
 
