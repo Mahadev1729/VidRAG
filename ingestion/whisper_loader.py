@@ -136,9 +136,10 @@ def download_audio(
     output_template = str(AUDIO_DIR / f"{video_id}.%(ext)s")
 
     ydl_opts = {
-        "format":    "bestaudio/best",
+        "format":    "bestaudio[protocol!=m3u8]/bestaudio/best",
         "outtmpl":   output_template,
         "js_runtimes": {"node": {}},
+        "remote_components": ["ejs:github"],
         "retries":    3,
         "fragment_retries": 3,
         "extractor_retries": 3,
