@@ -135,8 +135,8 @@ def download_audio(
 
     output_template = str(AUDIO_DIR / f"{video_id}.%(ext)s")
 
-    ydl_opts = {
-        "format":    "bestaudio[protocol!=m3u8]/bestaudio/best",
+    base_ydl_opts = {
+        "format":    "bestaudio[protocol!=m3u8]/best[protocol!=m3u8]/best",
         "outtmpl":   output_template,
         "js_runtimes": {"node": {}},
         "remote_components": ["ejs:github"],
@@ -155,16 +155,40 @@ def download_audio(
         "no_warnings": True,
     }
 
+    # YouTube can return media URLs that reject the default client with 403.
+    # Try clients with different access rules before reporting the download
+    # as unavailable.
+    ydl_options = [
+        {
+            **base_ydl_opts,
+            "extractor_args": {"youtube": {"player_client": ["android_vr"]}},
+        },
+        {
+            **base_ydl_opts,
+            "extractor_args": {"youtube": {"player_client": ["web_safari"]}},
+        },
+    ]
+
     if status_callback:
         status_callback("⬇️ Downloading audio...")
 
     print(f"[WHISPER] Downloading audio for {video_id}")
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([youtube_url])
-
-    except yt_dlp.utils.DownloadError as error:
+    last_error = None
+    for ydl_opts in ydl_options:
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([youtube_url])
+            break
+        except yt_dlp.utils.DownloadError as error:
+            last_error = error
+            cleanup_audio_files(video_id)
+        except Exception as error:
+            raise WhisperTranscriptionError(
+                "Unexpected error while downloading audio."
+            ) from error
+    else:
+        error = last_error
         msg = str(error).lower()
         if "private" in msg:
             raise WhisperTranscriptionError(
@@ -178,11 +202,6 @@ def download_audio(
             "Failed to download audio from YouTube. "
             "The video may be restricted or blocked in your region. "
             f"Downloader details: {error}"
-        ) from error
-
-    except Exception as error:
-        raise WhisperTranscriptionError(
-            "Unexpected error while downloading audio."
         ) from error
 
     audio_path = AUDIO_DIR / f"{video_id}.mp3"
