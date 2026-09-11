@@ -1,4 +1,4 @@
-﻿"""
+"""
 app.py
 ======
 Streamlit UI and pipeline orchestration.
@@ -31,8 +31,8 @@ st.session_state   → for per-USER, per-SESSION data
 """
 
 import os
-import uuid
 from pathlib import Path
+import uuid
 
 import streamlit as st
 
@@ -68,10 +68,16 @@ from llm.summarizer import summarize_video
 
 # ── Chat History (utility, kept at root) ─────────────────────────────────────
 from chat_history import (
-    init_db,
+    init_db as init_chat_db,
     save_message,
     get_messages,
     clear_messages,
+)
+
+# ── Authentication ────────────────────────────────────────────────────────────
+from utils.auth import (
+    init_db as init_auth_db,
+    render_auth_page,
 )
 
 
@@ -85,38 +91,7 @@ st.set_page_config(
     layout="wide",
 )
 
-
-# ============================================================
-# 2. API KEY CHECK
-# ============================================================
-# config.py loads the key from .env.  We check it here before
-# rendering any UI — if it is missing we stop immediately with
-# a clear error message.
-
-if not GROQ_API_KEY:
-    # Streamlit Cloud Secrets fallback
-    try:
-        _secret = st.secrets.get("GROQ_API_KEY", "")
-        if _secret:
-            os.environ["GROQ_API_KEY"] = _secret
-    except Exception:
-        pass
-
-if not GROQ_API_KEY and not os.environ.get("GROQ_API_KEY"):
-    st.error("❌ GROQ_API_KEY is not configured.")
-    st.info(
-        "For local use, add GROQ_API_KEY to .env. "
-        "For Streamlit Cloud, add it under App Settings → Secrets."
-    )
-    st.stop()
-
-
-# ============================================================
-# 3. DATABASE
-# ============================================================
-
-init_db()
-
+# Global styling
 st.markdown(
     """
     <style>
@@ -359,31 +334,35 @@ st.markdown(
 
 
 # ============================================================
-# 3. SESSION STATE
-# ============================================================
-# All per-user state lives here.
-# Streamlit re-runs app.py from top to bottom on every interaction.
-# Session state persists values across those re-runs for the same user.
-
-defaults = {
-    "session_id":         str(uuid.uuid4()),
-    "vector_store":       None,
-    "documents":          None,
-    "video_id":           None,
-    "summary":            None,
-    "youtube_url":        None,
-    "transcript_segments": None,
-    "transcript_source":  None,
-}
-
-for key, value in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
-
-# ============================================================
-# 4. HELPER FUNCTIONS (UI utilities — belong in app.py)
+# 2. DATABASE & SIDEBAR UTILITIES
 # ============================================================
 
+def init_db() -> None:
+    """Initialize authentication and chat history databases."""
+    init_auth_db()
+    init_chat_db()
+
+
+def render_sidebar() -> None:
+    """Render authenticated user badge and logout button in sidebar."""
+    username = st.session_state.get("username", "User")
+    st.sidebar.markdown(
+        f"""
+        <div style="padding: 0.75rem 0.9rem; border-radius: 10px; background: rgba(8, 127, 120, 0.08); border: 1px solid rgba(8, 127, 120, 0.2); margin-bottom: 1rem;">
+            <span style="font-size: 1rem; font-weight: 600; color: #17212b;">👤 {username}</span>
+            <span style="display: inline-block; margin-left: 0.5rem; color: #10b981; font-weight: bold; font-size: 0.85rem;">● Active</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.sidebar.button("🚪 Log Out", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+
+
+# ============================================================
+# 3. HELPER FUNCTIONS (UI utilities)
+# ============================================================
 
 def format_timestamp(seconds) -> str:
     """Convert seconds to MM:SS or HH:MM:SS display string."""
@@ -490,374 +469,390 @@ def fetch_transcript_with_progress(youtube_url):
 
 
 # ============================================================
-# 5. TITLE
+# 4. MAIN ENTRY POINT
 # ============================================================
 
-st.markdown(
-    """
-    <section class="hero">
-        <p class="hero-kicker">Watch less. Understand more.</p>
-        <h1 class="hero-title">YouTube RAG Assistant</h1>
-        <p class="hero-copy">Turn a long video into a searchable summary and ask grounded questions with timestamped sources.</p>
-    </section>
-    """,
-    unsafe_allow_html=True,
-)
+def main():
+    """Main application entrypoint with page guard and UI rendering."""
+    init_db()
+    if not st.session_state.get("authenticated", False):
+        render_auth_page()
+        return  # Stop execution until user logs in
 
-st.markdown(
-    """
-    <div class="workflow" aria-label="How the assistant works">
-        <div class="workflow-step"><span class="workflow-number">1</span>Bring a video</div>
-        <div class="workflow-step"><span class="workflow-number">2</span>Build your knowledge base</div>
-        <div class="workflow-step"><span class="workflow-number">3</span>Ask with evidence</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+    render_sidebar()
 
-if st.session_state.video_id:
+    # ── API Key Check ─────────────────────────────────────────────────────────
+    # config.py loads the key from .env. We check it here before
+    # rendering any UI — if it is missing we stop immediately with
+    # a clear error message.
+    if not GROQ_API_KEY:
+        # Streamlit Cloud Secrets fallback
+        try:
+            _secret = st.secrets.get("GROQ_API_KEY", "")
+            if _secret:
+                os.environ["GROQ_API_KEY"] = _secret
+        except Exception:
+            pass
+
+    if not GROQ_API_KEY and not os.environ.get("GROQ_API_KEY"):
+        st.error("❌ GROQ_API_KEY is not configured.")
+        st.info(
+            "For local use, add GROQ_API_KEY to .env. "
+            "For Streamlit Cloud, add it under App Settings → Secrets."
+        )
+        st.stop()
+
+    # ── Session State Defaults ────────────────────────────────────────────────
+    defaults = {
+        "session_id": str(uuid.uuid4()),
+        "vector_store": None,
+        "documents": None,
+        "video_id": None,
+        "summary": None,
+        "youtube_url": None,
+        "transcript_segments": None,
+        "transcript_source": None,
+    }
+
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+    # ── Title & Workflow ──────────────────────────────────────────────────────
     st.markdown(
-        f"""
-        <div class="active-video">
-            <span>Active video</span>
-            <strong>{st.session_state.video_id}</strong>
+        """
+        <section class="hero">
+            <p class="hero-kicker">Watch less. Understand more.</p>
+            <h1 class="hero-title">YouTube RAG Assistant</h1>
+            <p class="hero-copy">Turn a long video into a searchable summary and ask grounded questions with timestamped sources.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="workflow" aria-label="How the assistant works">
+            <div class="workflow-step"><span class="workflow-number">1</span>Bring a video</div>
+            <div class="workflow-step"><span class="workflow-number">2</span>Build your knowledge base</div>
+            <div class="workflow-step"><span class="workflow-number">3</span>Ask with evidence</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-
-# ============================================================
-# 6. URL INPUT
-# ============================================================
-
-st.markdown('<p class="section-label">Start with a video</p>',
-            unsafe_allow_html=True)
-url_column, action_column = st.columns([5, 1], vertical_alignment="bottom")
-with url_column:
-    youtube_url = st.text_input(
-        "YouTube Video URL",
-        placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...",
-    )
-with action_column:
-    process_button = st.button(
-        "Process video", type="primary", use_container_width=True)
-
-
-# ============================================================
-# 7. PROCESS VIDEO
-# ============================================================
-
-if process_button:
-
-    if not youtube_url.strip():
-        st.warning("Please enter a YouTube URL.")
-
-    else:
-        try:
-
-            # ── Step 1: Extract video ID ──────────────────────────────────────
-            with st.spinner("Extracting video ID..."):
-                video_id = extract_video_id(youtube_url)
-
-            st.session_state.video_id = video_id
-            st.session_state.youtube_url = youtube_url
-            st.info(f"🎬 Video ID: `{video_id}`")
-
-            # ── Step 2: Check for existing FAISS index ────────────────────────
-            index_dir = INDEXES_DIR / video_id
-            index_file = index_dir / "index.faiss"
-            pkl_file = index_dir / "index.pkl"
-            existing = index_file.exists() and pkl_file.exists()
-
-            # ── Step 3a: Load existing index ──────────────────────────────────
-            if existing:
-                st.info(
-                    "♻️ Existing FAISS index found. Loading saved vector store...")
-
-                with st.spinner("Loading vector store..."):
-                    vector_store = load_vector_store(index_dir)
-                st.session_state.vector_store = vector_store
-
-                # Load transcript (needed for timestamp metadata)
-                with st.spinner("Loading transcript..."):
-                    segments, source = fetch_transcript_with_progress(
-                        youtube_url)
-                st.session_state.transcript_segments = segments
-                st.session_state.transcript_source = source
-                show_transcript_source_message(source)
-
-                # Load saved summary if available
-                summary_file = SUMMARIES_DIR / f"{video_id}.txt"
-                if summary_file.exists():
-                    st.session_state.summary = summary_file.read_text(
-                        encoding="utf-8")
-
-                st.success("♻️ Existing video data loaded successfully!")
-
-            # ── Step 3b: Process new video ────────────────────────────────────
-            else:
-
-                # Get transcript (YouTube captions or Whisper)
-                segments, source = fetch_transcript_with_progress(youtube_url)
-
-                if not segments:
-                    st.error("No transcript was found.")
-                    st.stop()
-
-                st.session_state.transcript_segments = segments
-                st.session_state.transcript_source = source
-                show_transcript_source_message(source)
-
-                # Build plain text
-                transcript = " ".join(s["text"] for s in segments)
-                if not transcript.strip():
-                    st.error("Transcript is empty.")
-                    st.stop()
-
-                duration = segments[-1]["end"]
-                st.info(
-                    f"⏱️ Approximate duration: {format_timestamp(duration)}")
-
-                # Save transcript to disk
-                TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
-                with st.spinner("Saving transcript..."):
-                    save_transcript(transcript, video_id, TRANSCRIPTS_DIR)
-
-                # Chunk
-                with st.spinner("Splitting transcript into chunks..."):
-                    documents = create_documents(transcript, video_id)
-
-                if not documents:
-                    st.error("No chunks were created.")
-                    st.stop()
-
-                st.info(f"📚 Created {len(documents)} chunks.")
-
-                # Attach timestamps to chunk metadata
-                add_timestamp_metadata(documents, segments, video_id)
-
-                st.session_state.documents = documents
-
-                # Embed + build FAISS
-                st.info("🔧 Building knowledge base...")
-                with st.spinner("Creating embeddings and FAISS index..."):
-                    vector_store = create_vector_store(documents)
-
-                if vector_store is None:
-                    st.error("Failed to create vector store.")
-                    st.stop()
-
-                # Save FAISS to disk
-                with st.spinner("Saving index..."):
-                    save_vector_store(vector_store, index_dir)
-
-                st.success("✅ FAISS index saved!")
-                st.session_state.vector_store = vector_store
-
-                # Generate summary
-                with st.spinner("Generating video summary..."):
-                    summary = summarize_video(documents)
-
-                st.session_state.summary = summary
-
-                # Save summary
-                SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
-                (SUMMARIES_DIR / f"{video_id}.txt").write_text(
-                    summary, encoding="utf-8"
-                )
-
-                st.success("🎉 Video processed successfully!")
-
-        except ValueError as error:
-            st.error(str(error))
-
-        except TranscriptError as error:
-            st.error(str(error))
-
-        except Exception as error:
-            st.error(
-                "An unexpected error occurred while processing the video. "
-                "Please check the URL and try again."
-            )
-            st.exception(error)
-
-
-# ============================================================
-# 8. SUMMARY
-# ============================================================
-
-if st.session_state.summary:
-    st.divider()
-    with st.container(border=True):
+    if st.session_state.video_id:
         st.markdown(
-            '<p class="section-label">The essential takeaways</p>', unsafe_allow_html=True)
-        st.header("Video Summary")
-        st.markdown(st.session_state.summary)
+            f"""
+            <div class="active-video">
+                <span>Active video</span>
+                <strong>{st.session_state.video_id}</strong>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
+    # ── URL Input ─────────────────────────────────────────────────────────────
+    st.markdown('<p class="section-label">Start with a video</p>', unsafe_allow_html=True)
+    url_column, action_column = st.columns([5, 1], vertical_alignment="bottom")
+    with url_column:
+        youtube_url = st.text_input(
+            "YouTube Video URL",
+            placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...",
+        )
+    with action_column:
+        process_button = st.button("Process video", type="primary", use_container_width=True)
 
-# ============================================================
-# 9. CHAT HISTORY
-# ============================================================
+    # ── Process Video ─────────────────────────────────────────────────────────
+    if process_button:
+        if not youtube_url.strip():
+            st.warning("Please enter a YouTube URL.")
+        else:
+            try:
+                # Step 1: Extract video ID
+                with st.spinner("Extracting video ID..."):
+                    video_id = extract_video_id(youtube_url)
 
-if st.session_state.video_id:
-    messages = get_messages(
-        st.session_state.session_id,
-        st.session_state.video_id,
-    )
+                st.session_state.video_id = video_id
+                st.session_state.youtube_url = youtube_url
+                st.info(f"🎬 Video ID: `{video_id}`")
 
-    if messages:
+                # Step 2: Check for existing FAISS index
+                index_dir = INDEXES_DIR / video_id
+                index_file = index_dir / "index.faiss"
+                pkl_file = index_dir / "index.pkl"
+                existing = index_file.exists() and pkl_file.exists()
+
+                # Step 3a: Load existing index
+                if existing:
+                    st.info("♻️ Existing FAISS index found. Loading saved vector store...")
+
+                    with st.spinner("Loading vector store..."):
+                        vector_store = load_vector_store(index_dir)
+                    st.session_state.vector_store = vector_store
+
+                    # Load transcript (needed for timestamp metadata)
+                    with st.spinner("Loading transcript..."):
+                        segments, source = fetch_transcript_with_progress(youtube_url)
+                    st.session_state.transcript_segments = segments
+                    st.session_state.transcript_source = source
+                    show_transcript_source_message(source)
+
+                    # Load saved summary if available
+                    summary_file = SUMMARIES_DIR / f"{video_id}.txt"
+                    if summary_file.exists():
+                        st.session_state.summary = summary_file.read_text(encoding="utf-8")
+
+                    st.success("♻️ Existing video data loaded successfully!")
+
+                # Step 3b: Process new video
+                else:
+                    # Get transcript (YouTube captions or Whisper)
+                    segments, source = fetch_transcript_with_progress(youtube_url)
+
+                    if not segments:
+                        st.error("No transcript was found.")
+                        st.stop()
+
+                    st.session_state.transcript_segments = segments
+                    st.session_state.transcript_source = source
+                    show_transcript_source_message(source)
+
+                    # Build plain text
+                    transcript = " ".join(s["text"] for s in segments)
+                    if not transcript.strip():
+                        st.error("Transcript is empty.")
+                        st.stop()
+
+                    duration = segments[-1]["end"]
+                    st.info(f"⏱️ Approximate duration: {format_timestamp(duration)}")
+
+                    # Save transcript to disk
+                    TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+                    with st.spinner("Saving transcript..."):
+                        save_transcript(transcript, video_id, TRANSCRIPTS_DIR)
+
+                    # Chunk
+                    with st.spinner("Splitting transcript into chunks..."):
+                        documents = create_documents(transcript, video_id)
+
+                    if not documents:
+                        st.error("No chunks were created.")
+                        st.stop()
+
+                    st.info(f"📚 Created {len(documents)} chunks.")
+
+                    # Attach timestamps to chunk metadata
+                    add_timestamp_metadata(documents, segments, video_id)
+
+                    st.session_state.documents = documents
+
+                    # Embed + build FAISS
+                    st.info("🔧 Building knowledge base...")
+                    with st.spinner("Creating embeddings and FAISS index..."):
+                        vector_store = create_vector_store(documents)
+
+                    if vector_store is None:
+                        st.error("Failed to create vector store.")
+                        st.stop()
+
+                    # Save FAISS to disk
+                    with st.spinner("Saving index..."):
+                        save_vector_store(vector_store, index_dir)
+
+                    st.success("✅ FAISS index saved!")
+                    st.session_state.vector_store = vector_store
+
+                    # Generate summary
+                    with st.spinner("Generating video summary..."):
+                        summary = summarize_video(documents)
+
+                    st.session_state.summary = summary
+
+                    # Save summary
+                    SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
+                    (SUMMARIES_DIR / f"{video_id}.txt").write_text(
+                        summary, encoding="utf-8"
+                    )
+
+                    st.success("🎉 Video processed successfully!")
+
+            except ValueError as error:
+                st.error(str(error))
+            except TranscriptError as error:
+                st.error(str(error))
+            except Exception as error:
+                st.error(
+                    "An unexpected error occurred while processing the video. "
+                    "Please check the URL and try again."
+                )
+                st.exception(error)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    if st.session_state.summary:
         st.divider()
-        st.subheader("Conversation History")
-
-        for role, message in messages:
-            with st.chat_message(role):
-                st.write(message)
-
-        if st.button("🗑️ Clear Chat"):
-            clear_messages(
-                st.session_state.session_id,
-                st.session_state.video_id,
+        with st.container(border=True):
+            st.markdown(
+                '<p class="section-label">The essential takeaways</p>',
+                unsafe_allow_html=True,
             )
-            st.rerun()
+            st.header("Video Summary")
+            st.markdown(st.session_state.summary)
 
+    # ── Chat History ──────────────────────────────────────────────────────────
+    if st.session_state.video_id:
+        messages = get_messages(
+            st.session_state.session_id,
+            st.session_state.video_id,
+        )
 
-# ============================================================
-# 10. ASK QUESTIONS
-# ============================================================
+        if messages:
+            st.divider()
+            st.subheader("Conversation History")
 
-st.divider()
-st.markdown('<p class="section-label">Explore the transcript</p>',
-            unsafe_allow_html=True)
-st.header("Ask questions about the video")
+            for role, message in messages:
+                with st.chat_message(role):
+                    st.write(message)
 
-question_column, ask_column = st.columns([5, 1], vertical_alignment="bottom")
-with question_column:
-    question = st.text_input(
-        "Your question",
-        placeholder="What is the main idea of this video?",
-    )
-with ask_column:
-    ask_button = st.button("Ask question", use_container_width=True)
+            if st.button("🗑️ Clear Chat"):
+                clear_messages(
+                    st.session_state.session_id,
+                    st.session_state.video_id,
+                )
+                st.rerun()
 
-if ask_button:
+    # ── Ask Questions ─────────────────────────────────────────────────────────
+    st.divider()
+    st.markdown('<p class="section-label">Explore the transcript</p>', unsafe_allow_html=True)
+    st.header("Ask questions about the video")
 
-    if st.session_state.vector_store is None:
-        st.warning("Please process a YouTube video first.")
+    question_column, ask_column = st.columns([5, 1], vertical_alignment="bottom")
+    with question_column:
+        question = st.text_input(
+            "Your question",
+            placeholder="What is the main idea of this video?",
+        )
+    with ask_column:
+        ask_button = st.button("Ask question", use_container_width=True)
 
-    elif not question.strip():
-        st.warning("Please enter a question.")
-
-    else:
-        try:
-            # Save user question
-            save_message(
-                st.session_state.session_id,
-                st.session_state.video_id,
-                "user",
-                question,
-            )
-
-            # RAG: retrieve + answer (returns answer AND source docs in one call)
-            with st.spinner("Searching the video and generating answer..."):
-                answer, source_docs = answer_question(
-                    st.session_state.vector_store,
+    if ask_button:
+        if st.session_state.vector_store is None:
+            st.warning("Please process a YouTube video first.")
+        elif not question.strip():
+            st.warning("Please enter a question.")
+        else:
+            try:
+                # Save user question
+                save_message(
+                    st.session_state.session_id,
+                    st.session_state.video_id,
+                    "user",
                     question,
                 )
 
-            # Save assistant answer
-            save_message(
-                st.session_state.session_id,
-                st.session_state.video_id,
-                "assistant",
-                answer,
-            )
-
-            # Display answer
-            with st.container(border=True):
-                st.markdown(
-                    '<p class="section-label">Grounded response</p>', unsafe_allow_html=True)
-                st.subheader("Answer")
-                st.write(answer)
-
-            # ── Timestamp Sources ─────────────────────────────────────────────
-            # answer_question() already returns source_docs — no second
-            # similarity_search() needed here.
-            if source_docs:
-                st.subheader("Relevant video sources")
-                displayed_times = set()
-                source_number = 1
-
-                for doc in source_docs:
-                    start = doc.metadata.get("start")
-                    end = doc.metadata.get("end")
-
-                    if start is None:
-                        continue
-
-                    start_seconds = int(float(start))
-                    if start_seconds in displayed_times:
-                        continue
-                    displayed_times.add(start_seconds)
-
-                    time_text = format_timestamp(start_seconds)
-                    if end is not None:
-                        time_text += f" – {format_timestamp(int(float(end)))}"
-
-                    source_url = make_youtube_url(
-                        st.session_state.video_id, start_seconds
+                # RAG: retrieve + answer (returns answer AND source docs in one call)
+                with st.spinner("Searching the video and generating answer..."):
+                    answer, source_docs = answer_question(
+                        st.session_state.vector_store,
+                        question,
                     )
 
+                # Save assistant answer
+                save_message(
+                    st.session_state.session_id,
+                    st.session_state.video_id,
+                    "assistant",
+                    answer,
+                )
+
+                # Display answer
+                with st.container(border=True):
                     st.markdown(
-                        f"""
-                        <div class="source-row">
-                            <strong>Source {source_number}</strong>&nbsp;&nbsp;
-                            <code>{time_text}</code>&nbsp;&nbsp;→&nbsp;&nbsp;
-                            <a href="{source_url}" target="_blank">Watch at {format_timestamp(start_seconds)}</a>
-                        </div>
-                        """,
+                        '<p class="section-label">Grounded response</p>',
                         unsafe_allow_html=True,
                     )
-                    source_number += 1
+                    st.subheader("Answer")
+                    st.write(answer)
 
-        except Exception as e:
-            st.error("❌ Error while answering:")
-            st.exception(e)
+                # Timestamp Sources
+                if source_docs:
+                    st.subheader("Relevant video sources")
+                    displayed_times = set()
+                    source_number = 1
 
+                    for doc in source_docs:
+                        start = doc.metadata.get("start")
+                        end = doc.metadata.get("end")
 
-# ============================================================
-# 11. VIDEO INFORMATION
-# ============================================================
+                        if start is None:
+                            continue
 
-if st.session_state.video_id:
-    st.divider()
-    st.markdown('<p class="section-label">At a glance</p>',
-                unsafe_allow_html=True)
-    st.subheader("Video information")
+                        start_seconds = int(float(start))
+                        if start_seconds in displayed_times:
+                            continue
+                        displayed_times.add(start_seconds)
 
-    duration_text = "Pending"
-    if st.session_state.transcript_segments:
-        duration_text = format_timestamp(
-            st.session_state.transcript_segments[-1]["end"])
+                        time_text = format_timestamp(start_seconds)
+                        if end is not None:
+                            time_text += f" – {format_timestamp(int(float(end)))}"
 
-    source_text = "Pending"
-    if st.session_state.transcript_source:
-        source_text = (
-            "Whisper transcription"
-            if st.session_state.transcript_source == "whisper"
-            else "YouTube captions"
+                        source_url = make_youtube_url(
+                            st.session_state.video_id, start_seconds
+                        )
+
+                        st.markdown(
+                            f"""
+                            <div class="source-row">
+                                <strong>Source {source_number}</strong>&nbsp;&nbsp;
+                                <code>{time_text}</code>&nbsp;&nbsp;→&nbsp;&nbsp;
+                                <a href="{source_url}" target="_blank">Watch at {format_timestamp(start_seconds)}</a>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        source_number += 1
+
+            except Exception as e:
+                st.error("❌ Error while answering:")
+                st.exception(e)
+
+    # ── Video Information ─────────────────────────────────────────────────────
+    if st.session_state.video_id:
+        st.divider()
+        st.markdown('<p class="section-label">At a glance</p>', unsafe_allow_html=True)
+        st.subheader("Video information")
+
+        duration_text = "Pending"
+        if st.session_state.transcript_segments:
+            duration_text = format_timestamp(
+                st.session_state.transcript_segments[-1]["end"]
+            )
+
+        source_text = "Pending"
+        if st.session_state.transcript_source:
+            source_text = (
+                "Whisper transcription"
+                if st.session_state.transcript_source == "whisper"
+                else "YouTube captions"
+            )
+
+        chunk_text = (
+            str(len(st.session_state.documents))
+            if st.session_state.documents
+            else "Pending"
+        )
+        st.markdown(
+            f"""
+            <div class="info-grid">
+                <div class="info-item"><div class="info-item-label">Video ID</div><div class="info-item-value">{st.session_state.video_id}</div></div>
+                <div class="info-item"><div class="info-item-label">Duration</div><div class="info-item-value">{duration_text}</div></div>
+                <div class="info-item"><div class="info-item-label">Knowledge chunks</div><div class="info-item-value">{chunk_text}</div></div>
+            </div>
+            <div class="meta-pill">Transcript: {source_text}</div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    chunk_text = str(len(st.session_state.documents)
-                     ) if st.session_state.documents else "Pending"
-    st.markdown(
-        f"""
-        <div class="info-grid">
-            <div class="info-item"><div class="info-item-label">Video ID</div><div class="info-item-value">{st.session_state.video_id}</div></div>
-            <div class="info-item"><div class="info-item-label">Duration</div><div class="info-item-value">{duration_text}</div></div>
-            <div class="info-item"><div class="info-item-label">Knowledge chunks</div><div class="info-item-value">{chunk_text}</div></div>
-        </div>
-        <div class="meta-pill">Transcript: {source_text}</div>
-        """,
-        unsafe_allow_html=True,
-    )
+
+if __name__ == "__main__":
+    main()
