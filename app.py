@@ -74,15 +74,16 @@ from chat_history import (
     clear_messages,
 )
 
-# ── Authentication ────────────────────────────────────────────────────────────
+# ── Authentication & Styles ───────────────────────────────────────────────────
 from utils.auth import (
     init_db as init_auth_db,
     render_auth_page,
 )
+from utils.styles import load_css
 
 
 # ============================================================
-# 1. PAGE CONFIG
+# 1. PAGE CONFIG & STYLES
 # ============================================================
 
 st.set_page_config(
@@ -91,246 +92,9 @@ st.set_page_config(
     layout="wide",
 )
 
-# Global styling
-st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+# Load external CSS styling from static/style.css
+load_css()
 
-    :root {
-        --ink: #17212b;
-        --muted: #687783;
-        --line: #dce5e8;
-        --paper: #f7faf9;
-        --mint: #d9f4e8;
-        --teal: #087f78;
-        --coral: #e8664f;
-    }
-
-    .stApp {
-        background: linear-gradient(135deg, #f7faf9 0%, #eef7f4 52%, #fff8f1 100%);
-        color: var(--ink);
-    }
-
-    .block-container {
-        max-width: 1180px;
-        padding: 3.5rem 2rem 4rem;
-    }
-
-    h1, h2, h3, [data-testid="stMarkdownContainer"] strong {
-        font-family: 'Space Grotesk', sans-serif;
-        letter-spacing: 0;
-        color: var(--ink);
-    }
-
-    p, label, input, button, textarea, [data-testid="stMarkdownContainer"] {
-        font-family: 'DM Sans', sans-serif;
-        letter-spacing: 0;
-    }
-
-    .hero {
-        position: relative;
-        overflow: hidden;
-        padding: 2.25rem 2.5rem 2.35rem;
-        border: 1px solid rgba(8, 127, 120, .16);
-        border-radius: 18px;
-        background: linear-gradient(120deg, rgba(217, 244, 232, .88), rgba(255, 248, 241, .92));
-        box-shadow: 0 18px 45px rgba(32, 74, 69, .08);
-    }
-
-    .hero:after {
-        content: '';
-        position: absolute;
-        width: 220px;
-        height: 220px;
-        right: -70px;
-        top: -95px;
-        border: 22px solid rgba(232, 102, 79, .16);
-        border-radius: 50%;
-    }
-
-    .hero-kicker {
-        position: relative;
-        z-index: 1;
-        margin: 0 0 .5rem;
-        color: var(--teal);
-        font-size: .76rem;
-        font-weight: 700;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-    }
-
-    .hero-title {
-        position: relative;
-        z-index: 1;
-        margin: 0;
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: clamp(2rem, 4vw, 3.3rem);
-        line-height: 1.04;
-    }
-
-    .hero-copy {
-        position: relative;
-        z-index: 1;
-        max-width: 650px;
-        margin: .85rem 0 0;
-        color: #49615f;
-        font-size: 1.05rem;
-    }
-
-    .workflow {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: .75rem;
-        margin: 1.1rem 0 2rem;
-    }
-
-    .workflow-step {
-        display: flex;
-        align-items: center;
-        gap: .7rem;
-        min-height: 3.2rem;
-        padding: .7rem .85rem;
-        border: 1px solid rgba(8, 127, 120, .12);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, .58);
-        color: #49615f;
-        font-size: .86rem;
-        font-weight: 600;
-    }
-
-    .workflow-number {
-        display: grid;
-        flex: 0 0 1.8rem;
-        width: 1.8rem;
-        height: 1.8rem;
-        place-items: center;
-        border-radius: 50%;
-        background: var(--teal);
-        color: white;
-        font-size: .76rem;
-        font-weight: 700;
-    }
-
-    .active-video {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        margin: .25rem 0 1.8rem;
-        padding: .8rem 1rem;
-        border-left: 3px solid var(--coral);
-        border-radius: 0 10px 10px 0;
-        background: rgba(255, 255, 255, .7);
-        color: var(--muted);
-        font-size: .86rem;
-    }
-
-    .active-video strong { color: var(--ink); }
-
-    .source-row {
-        margin: .45rem 0;
-        padding: .7rem .85rem;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: rgba(255, 255, 255, .58);
-    }
-
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: .7rem;
-        margin-top: 1rem;
-    }
-
-    .info-item {
-        padding: .8rem;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: rgba(255, 255, 255, .58);
-    }
-
-    .info-item-label {
-        color: var(--muted);
-        font-size: .72rem;
-        font-weight: 700;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-    }
-
-    .info-item-value {
-        margin-top: .35rem;
-        color: var(--ink);
-        font-weight: 700;
-    }
-
-    [data-testid="stTextInput"] {
-        width: 100%;
-    }
-
-    [data-testid="stTextInput"] input {
-        min-height: 3rem;
-        width: 100%;
-        box-sizing: border-box;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: rgba(255, 255, 255, .86);
-    }
-
-    [data-testid="stTextInput"] input:focus {
-        border-color: var(--teal);
-        box-shadow: 0 0 0 3px rgba(8, 127, 120, .12);
-    }
-
-    [data-testid="stButton"] button {
-        min-height: 3rem;
-        width: 100%;
-        border-radius: 10px;
-        font-weight: 700;
-    }
-
-    [data-testid="stVerticalBlockBorderWrapper"] {
-        border-color: var(--line);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, .68);
-    }
-
-    .section-label {
-        margin: .25rem 0 .65rem;
-        color: var(--teal);
-        font-size: .75rem;
-        font-weight: 700;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-    }
-
-    .meta-pill {
-        display: inline-block;
-        margin: .2rem .35rem .2rem 0;
-        padding: .38rem .7rem;
-        border: 1px solid rgba(8, 127, 120, .15);
-        border-radius: 999px;
-        background: rgba(217, 244, 232, .55);
-        color: #27615b;
-        font-size: .82rem;
-    }
-
-    @media (max-width: 640px) {
-        .block-container { padding: 1.25rem 1rem 2.5rem; }
-        .hero { padding: 1.5rem 1.25rem 1.65rem; border-radius: 14px; }
-        .hero-copy { font-size: .95rem; }
-        .workflow, .info-grid { grid-template-columns: 1fr; }
-        .active-video { align-items: flex-start; flex-direction: column; gap: .25rem; }
-        [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
-        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-            flex: 1 1 100% !important;
-            min-width: 100% !important;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 
 # ============================================================

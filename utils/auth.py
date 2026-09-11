@@ -276,144 +276,106 @@ def render_auth_page() -> None:
     Render a centered, elegant authentication card with Sign In and Create Account tabs.
     Supports signing in via username or gmail/email.
     """
-    st.markdown(
-        """
-        <style>
-        .auth-container {
-            max-width: 480px;
-            margin: 2rem auto 1.5rem auto;
-            padding: 2.2rem 2.2rem 1.8rem 2.2rem;
-            border-radius: 16px;
-            border: 1px solid rgba(8, 127, 120, 0.18);
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(247, 250, 249, 0.9));
-            box-shadow: 0 16px 40px rgba(8, 127, 120, 0.08);
-        }
-        .auth-header {
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .auth-icon {
-            font-size: 2.5rem;
-            margin-bottom: 0.25rem;
-        }
-        .auth-title {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.7rem;
-            font-weight: 700;
-            color: #17212b;
-            margin: 0;
-        }
-        .auth-subtitle {
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.92rem;
-            color: #687783;
-            margin-top: 0.35rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    _, center_col, _ = st.columns([1, 1.8, 1])
+    _, center_col, _ = st.columns([1, 2.2, 1])
 
     with center_col:
-        st.markdown(
-            """
-            <div class="auth-container">
+        with st.container(border=True):
+            st.markdown(
+                """
                 <div class="auth-header">
                     <div class="auth-icon">🎥</div>
                     <h2 class="auth-title">YouTube RAG Assistant</h2>
                     <p class="auth-subtitle">Sign in to summarize videos and chat with timestamps</p>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
 
-        tab_signin, tab_register = st.tabs(["🔑 Sign In", "📝 Create Account"])
+            tab_signin, tab_register = st.tabs(["🔑 Sign In", "📝 Create Account"])
 
-        with tab_signin:
-            with st.form("signin_form", clear_on_submit=False):
-                signin_identifier = st.text_input(
-                    "Username or Gmail / Email",
-                    placeholder="Enter your username or email address",
-                    key="signin_identifier",
-                )
-                signin_password = st.text_input(
-                    "Password",
-                    type="password",
-                    placeholder="••••••••",
-                    key="signin_password",
-                )
-                signin_submitted = st.form_submit_button(
-                    "Sign In",
-                    use_container_width=True,
-                    type="primary",
-                )
+            with tab_signin:
+                with st.form("signin_form", clear_on_submit=False):
+                    signin_identifier = st.text_input(
+                        "Username or Gmail / Email",
+                        placeholder="Enter your username or email address",
+                        key="signin_identifier",
+                    )
+                    signin_password = st.text_input(
+                        "Password",
+                        type="password",
+                        placeholder="••••••••",
+                        key="signin_password",
+                    )
+                    signin_submitted = st.form_submit_button(
+                        "Sign In",
+                        use_container_width=True,
+                        type="primary",
+                    )
 
-                if signin_submitted:
-                    if not signin_identifier.strip() or not signin_password:
-                        st.error("Please enter your username/email and password.")
-                    else:
-                        is_authenticated = authenticate_user(
-                            signin_identifier,
-                            signin_password,
-                        )
-                        if is_authenticated:
-                            user = get_user_by_identifier(signin_identifier)
-                            st.session_state.authenticated = True
-                            st.session_state.username = (
-                                user["username"] if user else signin_identifier.strip()
+                    if signin_submitted:
+                        if not signin_identifier.strip() or not signin_password:
+                            st.error("Please enter your username/email and password.")
+                        else:
+                            is_authenticated = authenticate_user(
+                                signin_identifier,
+                                signin_password,
                             )
-                            st.success("Signed in successfully! Redirecting...")
-                            st.rerun()
-                        else:
-                            st.error("Invalid username/email or password. Please try again.")
+                            if is_authenticated:
+                                user = get_user_by_identifier(signin_identifier)
+                                st.session_state.authenticated = True
+                                st.session_state.username = (
+                                    user["username"] if user else signin_identifier.strip()
+                                )
+                                st.success("Signed in successfully! Redirecting...")
+                                st.rerun()
+                            else:
+                                st.error("Invalid username/email or password. Please try again.")
 
-        with tab_register:
-            with st.form("register_form", clear_on_submit=False):
-                reg_username = st.text_input(
-                    "Choose Username",
-                    placeholder="Minimum 3 characters",
-                    key="register_username",
-                    help="Usernames are case-insensitive and must be at least 3 characters.",
-                )
-                reg_email = st.text_input(
-                    "Gmail / Email Address",
-                    placeholder="e.g. yourname@gmail.com",
-                    key="register_email",
-                    help="Used for sign in and account identification.",
-                )
-                reg_password = st.text_input(
-                    "Password",
-                    type="password",
-                    placeholder="Minimum 6 characters",
-                    key="register_password",
-                    help="Password must be at least 6 characters.",
-                )
-                reg_confirm = st.text_input(
-                    "Confirm Password",
-                    type="password",
-                    placeholder="Re-enter your password",
-                    key="register_confirm",
-                )
-                register_submitted = st.form_submit_button(
-                    "Create Account",
-                    use_container_width=True,
-                    type="primary",
-                )
+            with tab_register:
+                with st.form("register_form", clear_on_submit=False):
+                    reg_username = st.text_input(
+                        "Choose Username",
+                        placeholder="Minimum 3 characters",
+                        key="register_username",
+                        help="Usernames are case-insensitive and must be at least 3 characters.",
+                    )
+                    reg_email = st.text_input(
+                        "Gmail / Email Address",
+                        placeholder="e.g. yourname@gmail.com",
+                        key="register_email",
+                        help="Used for sign in and account identification.",
+                    )
+                    reg_password = st.text_input(
+                        "Password",
+                        type="password",
+                        placeholder="Minimum 6 characters",
+                        key="register_password",
+                        help="Password must be at least 6 characters.",
+                    )
+                    reg_confirm = st.text_input(
+                        "Confirm Password",
+                        type="password",
+                        placeholder="Re-enter your password",
+                        key="register_confirm",
+                    )
+                    register_submitted = st.form_submit_button(
+                        "Create Account",
+                        use_container_width=True,
+                        type="primary",
+                    )
 
-                if register_submitted:
-                    if not reg_username.strip() or not reg_email.strip() or not reg_password:
-                        st.error("Please fill in all required fields.")
-                    elif not is_valid_email(reg_email):
-                        st.error("Please enter a valid Gmail / Email address (e.g. name@gmail.com).")
-                    elif reg_password != reg_confirm:
-                        st.error("Passwords do not match. Please verify and try again.")
-                    else:
-                        result = register_user(reg_username, reg_email, reg_password)
-                        if result.success:
-                            st.success(result.message)
-                            st.info("👉 Switch to the **🔑 Sign In** tab above to log in.")
+                    if register_submitted:
+                        if not reg_username.strip() or not reg_email.strip() or not reg_password:
+                            st.error("Please fill in all required fields.")
+                        elif not is_valid_email(reg_email):
+                            st.error("Please enter a valid Gmail / Email address (e.g. name@gmail.com).")
+                        elif reg_password != reg_confirm:
+                            st.error("Passwords do not match. Please verify and try again.")
                         else:
-                            st.error(result.message)
+                            result = register_user(reg_username, reg_email, reg_password)
+                            if result.success:
+                                st.success(result.message)
+                                st.info("👉 Switch to the **🔑 Sign In** tab above to log in.")
+                            else:
+                                st.error(result.message)
+
