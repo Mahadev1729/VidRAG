@@ -1,4 +1,4 @@
-# Secrets
+﻿# Secrets
 .env
 
 # Python
@@ -11,9 +11,9 @@ __pycache__/
 .Python
 
 
-# data/audio/
 
 
+data/audio/
 .vscode/
 .idea/
 *.swp
