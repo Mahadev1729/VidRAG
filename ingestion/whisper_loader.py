@@ -51,7 +51,7 @@ import streamlit as st
 import whisper
 import yt_dlp
 
-from config import AUDIO_DIR, WHISPER_MODEL
+from config import AUDIO_DIR, COOKIES_FROM_BROWSER, WHISPER_MODEL
 
 
 # ── Custom Errors ─────────────────────────────────────────────────────────────
@@ -138,8 +138,6 @@ def download_audio(
     base_ydl_opts = {
         "format":    "bestaudio[protocol!=m3u8]/best[protocol!=m3u8]/best",
         "outtmpl":   output_template,
-        "js_runtimes": {"node": {}},
-        "remote_components": ["ejs:github"],
         "retries":    3,
         "fragment_retries": 3,
         "extractor_retries": 3,
@@ -155,17 +153,31 @@ def download_audio(
         "no_warnings": True,
     }
 
-    # YouTube can return media URLs that reject the default client with 403.
-    # Try clients with different access rules before reporting the download
-    # as unavailable.
+    # If configured in .env, automatically extract cookies from the user's browser
+    # (e.g. chrome, edge, firefox, brave) to authenticate against bot challenges.
+    if COOKIES_FROM_BROWSER:
+        base_ydl_opts["cookiesfrombrowser"] = (COOKIES_FROM_BROWSER,)
+
+    # Modern YouTube player client fallback chain:
+    # 1. android          - High success rate, standard mobile client
+    # 2. android_creator  - Creator studio mobile client
+    # 3. tv_embedded      - Embedded TV client, avoids web-safari bot checks
+    # 4. default          - Standard yt-dlp default extractor
     ydl_options = [
         {
             **base_ydl_opts,
-            "extractor_args": {"youtube": {"player_client": ["android_vr"]}},
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
         },
         {
             **base_ydl_opts,
-            "extractor_args": {"youtube": {"player_client": ["web_safari"]}},
+            "extractor_args": {"youtube": {"player_client": ["android_creator"]}},
+        },
+        {
+            **base_ydl_opts,
+            "extractor_args": {"youtube": {"player_client": ["tv_embedded"]}},
+        },
+        {
+            **base_ydl_opts,
         },
     ]
 

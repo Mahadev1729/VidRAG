@@ -59,6 +59,10 @@ EMBEDDING_MODEL: str = os.getenv(
 # "base" is the recommended default for CPU machines.
 WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "base")
 
+# Optional browser cookie extraction for yt-dlp if YouTube requires authentication.
+# Options: chrome, edge, firefox, brave, opera, vivaldi, or empty string.
+COOKIES_FROM_BROWSER: str = os.getenv("COOKIES_FROM_BROWSER", "").strip().lower()
+
 
 # ── Chunking ──────────────────────────────────────────────────────────────────
 # CHUNK_SIZE:    max characters per chunk sent to the embedding model

@@ -178,18 +178,23 @@ def _fetch_youtube_transcript_segments(video_id: str) -> list:
 def _try_youtube_transcript(video_id: str) -> list | None:
     """
     Safe wrapper: returns segments on success, None on any failure.
-    This lets the caller silently fall back to Whisper.
+    Retries once on transient errors before falling back to Whisper.
     """
-    try:
-        return _fetch_youtube_transcript_segments(video_id)
-    except (
-        NoTranscriptFound, TranscriptsDisabled, VideoUnavailable,
-        YouTubeRequestFailed, ParseError, ValueError,
-        AttributeError, TypeError, KeyError,
-    ):
-        return None
-    except Exception:
-        return None
+    import time
+
+    for attempt in range(2):
+        try:
+            return _fetch_youtube_transcript_segments(video_id)
+        except (NoTranscriptFound, TranscriptsDisabled, VideoUnavailable):
+            # Definite caption absence — proceed directly to Whisper fallback
+            return None
+        except Exception as error:
+            print(f"[INGESTION] YouTube caption attempt {attempt + 1} failed: {error}")
+            if attempt == 0:
+                time.sleep(1)
+
+    return None
+
 
 
 # ── Public Entry Point ────────────────────────────────────────────────────────
