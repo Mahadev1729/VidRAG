@@ -41,41 +41,52 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 
+def _get_config(key: str, default: str = "") -> str:
+    """Retrieve config value checking st.secrets (Streamlit Cloud) then os.getenv (.env/system)."""
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+
 # ── API Keys ──────────────────────────────────────────────────────────────────
-GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY: str = _get_config("GROQ_API_KEY", "")
 
 # ── Model Names ───────────────────────────────────────────────────────────────
-# To switch to a different Groq model, change GROQ_MODEL here (or in .env).
+# To switch to a different Groq model, change GROQ_MODEL here (or in .env / st.secrets).
 # No other file needs to know the model name.
-GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+GROQ_MODEL: str = _get_config("GROQ_MODEL", "openai/gpt-oss-20b")
 
 # Sentence Transformer for creating text embeddings.
-EMBEDDING_MODEL: str = os.getenv(
+EMBEDDING_MODEL: str = _get_config(
     "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
 )
 
 # Whisper model size.
 # Options: tiny, base, small, medium, large
 # "base" is the recommended default for CPU machines.
-WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "base")
+WHISPER_MODEL: str = _get_config("WHISPER_MODEL", "base")
 
 # Optional browser cookie extraction for yt-dlp if YouTube requires authentication.
 # Options: chrome, edge, firefox, brave, opera, vivaldi, or empty string.
-COOKIES_FROM_BROWSER: str = os.getenv("COOKIES_FROM_BROWSER", "").strip().lower()
+COOKIES_FROM_BROWSER: str = _get_config("COOKIES_FROM_BROWSER", "").strip().lower()
 
 
 # ── Chunking ──────────────────────────────────────────────────────────────────
 # CHUNK_SIZE:    max characters per chunk sent to the embedding model
 # CHUNK_OVERLAP: characters of overlap between adjacent chunks
 #                (prevents context being cut at chunk boundaries)
-CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE",    "1000"))
-CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
+CHUNK_SIZE: int = int(_get_config("CHUNK_SIZE",    "1000"))
+CHUNK_OVERLAP: int = int(_get_config("CHUNK_OVERLAP", "200"))
 
 
 # ── Retrieval ─────────────────────────────────────────────────────────────────
 # Number of chunks returned by FAISS similarity search.
 # k=4 is a sensible default — enough context for most questions.
-TOP_K: int = int(os.getenv("TOP_K", "4"))
+TOP_K: int = int(_get_config("TOP_K", "4"))
 
 
 # ── Data Directories ──────────────────────────────────────────────────────────
@@ -89,5 +100,5 @@ SUMMARIES_DIR = DATA_DIR / "summaries"
 # ── Summarisation ─────────────────────────────────────────────────────────────
 # Groq has token-per-minute limits.  We split long transcripts
 # before summarising to stay within those limits.
-SUMMARY_MAX_CHARS: int = int(os.getenv("SUMMARY_MAX_CHARS",      "6000"))
-SUMMARY_REQUEST_DELAY: int = int(os.getenv("SUMMARY_REQUEST_DELAY",  "5"))
+SUMMARY_MAX_CHARS: int = int(_get_config("SUMMARY_MAX_CHARS",      "6000"))
+SUMMARY_REQUEST_DELAY: int = int(_get_config("SUMMARY_REQUEST_DELAY",  "5"))
