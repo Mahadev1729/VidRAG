@@ -153,33 +153,40 @@ def download_audio(
         "no_warnings": True,
     }
 
-    # If configured in .env, automatically extract cookies from the user's browser
-    # (e.g. chrome, edge, firefox, brave) to authenticate against bot challenges.
-    if COOKIES_FROM_BROWSER:
-        base_ydl_opts["cookiesfrombrowser"] = (COOKIES_FROM_BROWSER,)
-
-    # Modern YouTube player client fallback chain:
-    # 1. android          - High success rate, standard mobile client
-    # 2. android_creator  - Creator studio mobile client
-    # 3. tv_embedded      - Embedded TV client, avoids web-safari bot checks
-    # 4. default          - Standard yt-dlp default extractor
-    ydl_options = [
-        {
-            **base_ydl_opts,
-            "extractor_args": {"youtube": {"player_client": ["android"]}},
-        },
-        {
-            **base_ydl_opts,
-            "extractor_args": {"youtube": {"player_client": ["android_creator"]}},
-        },
-        {
-            **base_ydl_opts,
-            "extractor_args": {"youtube": {"player_client": ["tv_embedded"]}},
-        },
-        {
-            **base_ydl_opts,
-        },
+    # Player client priority:
+    # 1. mweb    - Mobile web client; highly resilient and solves JS challenges via Deno/Node
+    # 2. web     - Standard desktop client
+    # 3. default - yt-dlp default extractor with visionos/web fallback
+    client_configs = [
+        {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
+        {"extractor_args": {"youtube": {"player_client": ["web"]}}},
+        {},
     ]
+
+    ydl_options = []
+
+    # Safely probe browser cookies (avoids repetitive failed attempts if browser SQLite DB is locked on Windows)
+    if COOKIES_FROM_BROWSER:
+        try:
+            yt_dlp.cookies.extract_cookies_from_browser(COOKIES_FROM_BROWSER)
+            for cfg in client_configs:
+                ydl_options.append({
+                    **base_ydl_opts,
+                    "cookiesfrombrowser": (COOKIES_FROM_BROWSER,),
+                    **cfg,
+                })
+        except Exception as cookie_err:
+            print(
+                f"[WHISPER] Browser cookie extraction from '{COOKIES_FROM_BROWSER}' "
+                f"unavailable ({cookie_err}). Using resilient player clients."
+            )
+
+    # Robust fallback without browser cookies using modern clients
+    for cfg in client_configs:
+        ydl_options.append({
+            **base_ydl_opts,
+            **cfg,
+        })
 
     if status_callback:
         status_callback("⬇️ Downloading audio...")
