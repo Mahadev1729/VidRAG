@@ -1,46 +1,47 @@
 # 🎥 YouTube RAG Assistant
 
-A local AI assistant that lets you **summarise any YouTube video and ask questions about its content** — grounded entirely in what the video actually says.
+A modern, production-ready AI assistant that lets you **summarise any YouTube video and ask questions about its content** — grounded strictly in what the video actually says.
 
-Built with Python, Streamlit, LangChain, Sentence Transformers, FAISS, Groq, Whisper, and SQLite.
+Built with **Python**, **Streamlit**, **LangChain**, **Sentence Transformers**, **FAISS**, **Groq LLM**, **OpenAI Whisper**, and **SQLite**.
 
 ---
 
-## Features
+## 🌟 Key Features
 
-- 🔐 **Secure User Authentication**: Complete SQLite3 user registration & login system (PBKDF2-HMAC-SHA256, 100,000 rounds, 16-byte random salt).
-- 📧 **Dual Sign-In**: Sign in seamlessly using either your **Username or Gmail / Email Address**.
-- 👤 **Session Guard & User Status**: Authenticated route protection with sidebar user status (`👤 [username] ● Active`) and one-click logout.
-- 🔗 **Instant Video Ingestion**: Paste any YouTube URL and process it into a vector knowledge base.
-- 📝 **Automatic Captions**: Transcript retrieval via YouTube captions with language fallback.
-- 🎙️ **Whisper Fallback**: Local Whisper transcription via `yt-dlp` when captions are disabled or unavailable.
-- 🧠 **RAG (Retrieval-Augmented Generation)**: Grounded question answering strictly based on video transcripts.
-- 📍 **Clickable Timestamps**: Every answer source links directly to the exact second in the YouTube video.
-- 📄 **Automatic Video Summary**: High-level key takeaways generated for quick understanding.
+- 🔐 **Secure User Authentication**: Complete SQLite3 user registration & login system with PBKDF2-HMAC-SHA256 (100,000 iterations + 16-byte random salt).
+- 📧 **Dual Sign-In**: Sign in seamlessly using either your **Username or Email Address**.
+- 👤 **Session Guard & User Status**: Authenticated route protection with persistent sidebar user status and one-click logout.
+- 🔗 **Instant Video Ingestion**: Paste any YouTube URL (Standard, Short, or Shorts) to convert it into a vector knowledge base.
+- 📝 **Automatic Captions**: Fetches transcripts instantly via the YouTube Transcript API (zero download overhead for 90%+ of videos).
+- 🎙️ **Whisper Fallback Pipeline**: Automatically falls back to downloading audio and running Whisper speech-to-text when captions are disabled or unavailable.
+- 🍪 **YouTube Bot & SABR Bypass**: Built-in authentication support for `cookies.txt` and Streamlit Cloud secrets to bypass YouTube's `Sign in to confirm you're not a bot` and `HTTP 403: Forbidden` errors.
+- 🧠 **RAG (Retrieval-Augmented Generation)**: Grounded question answering strictly based on retrieved transcript segments.
+- 📍 **Clickable Timestamps**: Every answer citation links directly to the exact second in the YouTube video.
+- 📄 **Automatic Video Summary**: High-level key takeaways and structured outlines generated instantly via Groq.
 - 💬 **Persistent Conversation History**: Video-specific chat history stored locally in SQLite.
-- ⚡ **Cached FAISS Index**: Vector stores cached to disk to eliminate re-embedding on reload.
-- 🎨 **Clean Design System**: Externalized stylesheet (`static/style.css`) with Space Grotesk & DM Sans typography and high-contrast styling.
+- ⚡ **Cached FAISS Index**: Vector stores cached to disk to eliminate redundant embeddings on reload.
+- 🎨 **Modern Design System**: Styled with custom CSS (`static/style.css`), Space Grotesk & DM Sans typography, and responsive cards.
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```
-app.py (UI Layer & Route Guard)
+app.py (Streamlit UI Layer & Route Guard)
   │
   ├──► utils/auth.py          → SQLite User DB + PBKDF2 Hashing + Dual Sign-In
   ├──► utils/styles.py        → Injects static/style.css design tokens
   │
   ▼
 ingestion/
-  ├── youtube_loader.py       → YouTube Transcript API
-  ├── whisper_loader.py       → yt-dlp + Whisper fallback
+  ├── youtube_loader.py       → YouTube Transcript API (Primary)
+  ├── whisper_loader.py       → yt-dlp + Cookies + Whisper Fallback (Secondary)
   └── chunker.py              → Split transcript into overlapping chunks
   │
   ▼
 retrieval/
-  ├── embeddings.py           → Sentence Transformers (MiniLM)
-  └── vector_store.py         → FAISS index (create / save / load)
+  ├── embeddings.py           → Sentence Transformers (all-MiniLM-L6-v2)
+  └── vector_store.py         → FAISS index (create / cache / load)
   │
   ▼
 llm/
@@ -49,226 +50,244 @@ llm/
   └── summarizer.py           → Multi-chunk video summarisation
 ```
 
-### Data Flow
+### 🔄 Data Flow
 
 ```
-1. User Authentication
+1. Authentication
    Username/Email + Password ──► PBKDF2 Constant-Time Check ──► Authenticated Session
 
-2. Video Ingestion
+2. Ingestion & Vectorisation
    YouTube URL
         ↓
     ingestion/
-        ├── YouTube Transcript API  ──► success → segments
-        └── FAIL → yt-dlp → MP3 → Whisper → segments
+        ├── YouTube Transcript API  ──► SUCCESS → Segments
+        └── (Captions missing) ──► yt-dlp (cookies.txt) → MP3 → Whisper → Segments
         ↓
    Timestamped Transcript Segments
         ↓
-    ingestion/chunker.py
+    ingestion/chunker.py (1000 char chunks, 200 char overlap)
         ↓
-   LangChain Documents (with start/end metadata)
+    retrieval/embeddings.py (384-dimensional dense vectors)
         ↓
-    retrieval/embeddings.py  →  384-dim vectors
-        ↓
-    retrieval/vector_store.py  →  FAISS index
+    retrieval/vector_store.py (FAISS Index stored in data/indexes/)
 
-3. Question Answering
-   User Question → FAISS similarity search → top-4 chunks
+3. RAG Q&A Pipeline
+   User Question ──► FAISS Similarity Search (Top-4 Chunks)
         ↓
-    llm/rag.py  →  context + prompt → Groq
+    llm/rag.py ──► Grounded Prompt ──► Groq Cloud LLM
         ↓
-   Grounded Answer + Clickable Timestamp Sources
+   Answer with Clickable Video Timestamps
 ```
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 YoutubeChatBot_RAG/
 │
-├── app.py                  ← Streamlit UI, entry point, & page guard
-├── chat_history.py         ← SQLite conversation history
-├── config.py               ← Configuration and environment variables
+├── app.py                  ← Streamlit UI, main orchestrator & page guard
+├── chat_history.py         ← SQLite conversation history manager
+├── config.py               ← Centralized configuration & environment loader
+├── packages.txt            ← Linux system dependencies (ffmpeg, nodejs for cloud)
+├── requirements.txt        ← Python dependencies
+├── cookies.txt             ← (Optional) YouTube cookies for bot bypass (gitignored)
+├── users.db                ← SQLite user database (gitignored)
+├── .env                    ← Local environment secrets (gitignored)
+├── .env.example            ← Template for environment variables
 │
 ├── .streamlit/
-│   └── config.toml         ← Streamlit theme configuration (light palette)
+│   └── config.toml         ← Streamlit theme configuration
 │
 ├── static/
-│   └── style.css           ← Design system (fonts, forms, cards, responsive rules)
+│   └── style.css           ← Modern design system & styling
 │
 ├── utils/
 │   ├── __init__.py
-│   ├── auth.py             ← SQLite auth, PBKDF2 hashing, dual login, auth card
-│   └── styles.py           ← Style injection utility (load_css)
+│   ├── auth.py             ← SQLite authentication & PBKDF2 password hashing
+│   └── styles.py           ← Style injection helper
 │
 ├── ingestion/
 │   ├── __init__.py
-│   ├── youtube_loader.py   ← URL parsing, YouTube Transcript API, Whisper fallback
-│   ├── whisper_loader.py   ← yt-dlp audio download + local Whisper transcription
-│   └── chunker.py          ← Transcript → overlapping LangChain Documents
+│   ├── youtube_loader.py   ← Primary transcript fetcher & fallback orchestrator
+│   ├── whisper_loader.py   ← yt-dlp audio downloader & Whisper transcriber
+│   └── chunker.py          ← Semantic transcript text splitter
 │
 ├── retrieval/
 │   ├── __init__.py
-│   ├── embeddings.py       ← Sentence Transformer (all-MiniLM-L6-v2)
-│   └── vector_store.py     ← FAISS create / save / load
+│   ├── embeddings.py       ← Sentence Transformers embedding generator
+│   └── vector_store.py     ← FAISS vector store creation, saving & loading
 │
 ├── llm/
 │   ├── __init__.py
 │   ├── groq_client.py      ← Shared Groq API client
-│   ├── rag.py              ← RAG question answering
-│   └── summarizer.py       ← Multi-chunk video summarisation
+│   ├── rag.py              ← Grounded question answering with citations
+│   └── summarizer.py       ← Multi-chunk video summarizer
 │
-├── data/
-│   ├── transcripts/        ← Saved transcript text files
-│   ├── audio/              ← Temporary audio (deleted after transcription)
-│   ├── indexes/            ← FAISS indexes per video
-│   ├── summaries/          ← Cached summary text files
-│   └── chat_history.db     ← SQLite chat messages
-│
-├── users.db                ← Local user credentials database (gitignored)
-├── .env                    ← Secrets & API keys (gitignored)
-├── .env.example            ← Template for environment variables
-├── .gitignore              ← Excludes users.db*, .env, audio/, etc.
-└── requirements.txt        ← Python dependencies
+└── data/                   ← Local persistent storage
+    ├── transcripts/        ← Cached raw transcript files
+    ├── audio/              ← Temporary audio files (auto-cleaned)
+    ├── indexes/            ← Cached FAISS vector stores per video
+    ├── summaries/          ← Cached summary files
+    └── chat_history.db     ← SQLite chat messages
 ```
 
 ---
 
-## Installation
+## 🚀 Local Installation & Setup
 
-### 1. Clone the repository
-
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/your-username/YoutubeChatBot_RAG.git
 cd YoutubeChatBot_RAG
 ```
 
-### 2. Create a virtual environment
-
+### 2. Create and Activate Virtual Environment
 ```bash
-python -m venv venv
-
 # Windows
+python -m venv venv
 venv\Scripts\activate
 
 # macOS / Linux
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Install dependencies
-
+### 3. Install Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Install FFmpeg
-
-FFmpeg is required for Whisper fallback (audio extraction).
-
-- **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to `PATH`
+FFmpeg is required for Whisper fallback audio extraction:
+- **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add the `bin` folder to your System `PATH` (or install via `winget install Gyan.FFmpeg` or `choco install ffmpeg`).
 - **macOS**: `brew install ffmpeg`
-- **Linux**: `sudo apt install ffmpeg`
+- **Linux**: `sudo apt update && sudo apt install ffmpeg`
 
-### 5. Set up environment variables
-
+### 5. Configure Environment Variables
+Copy the example environment file:
 ```bash
 cp .env.example .env
 ```
-
-Edit `.env` and configure your Groq API key:
-
+Edit `.env` and add your **Groq API Key** (get one free at [console.groq.com](https://console.groq.com)):
 ```env
-GROQ_API_KEY=gsk_your_key_here
+GROQ_API_KEY=gsk_your_groq_api_key_here
 ```
 
-Get a free key at [console.groq.com](https://console.groq.com).
-
-### 6. Run the application
-
+### 6. Run the Application
 ```bash
 streamlit run app.py
 ```
 
 ---
 
-## Authentication & Security
+## 🍪 Bypassing YouTube Bot Verification (`cookies.txt`)
 
-The application includes a built-in user authentication layer implemented strictly using the Python Standard Library (`sqlite3`, `hashlib`, `secrets`):
+YouTube enforces bot detection and SABR streaming protection, which can trigger errors like:
+```text
+ERROR: [youtube] Sign in to confirm you’re not a bot.
+ERROR: unable to download video data: HTTP Error 403: Forbidden
+```
 
-- **Database Table**: Automatically initializes `users.db` with auto-migration:
-  ```sql
-  CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL COLLATE NOCASE,
-      email TEXT UNIQUE COLLATE NOCASE,
-      password_hash TEXT NOT NULL,
-      salt TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-  ```
-- **Password Security**:
-  - **Salt**: 16 cryptographically secure random bytes generated via `secrets.token_bytes(16)`.
-  - **Hashing**: PBKDF2 HMAC-SHA256 with 100,000 iterations (`hashlib.pbkdf2_hmac`).
-  - **Verification**: Constant-time comparison using `secrets.compare_digest`.
-- **Registration**:
-  - Requires a unique Username (≥ 3 characters) and valid Gmail / Email address.
-  - Requires Password (≥ 6 characters) with confirmation check.
-- **Dual Sign-In**:
-  - Users can sign in using either their **Username** or **Gmail / Email Address**.
-- **Session Control**:
-  - Unauthorized visitors are restricted to the authentication card.
-  - Logging out clears `st.session_state` and returns to the login screen.
-  - Credential database (`users.db*`) is excluded from Git tracking via `.gitignore`.
+### How to Fix in 30 Seconds:
+1. Install the **Get cookies.txt LOCALLY** browser extension:
+   - [Chrome / Edge / Brave Extension](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbngbenbfghflnefglmimmnj)
+   - [Firefox Add-on](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)
+2. Go to **[youtube.com](https://www.youtube.com)** in your browser and ensure you are logged in.
+3. Click the extension icon and click **Export**.
+4. Rename the downloaded file to **`cookies.txt`** and place it in your project's root folder:
+   ```text
+   YoutubeChatBot_RAG/
+   ├── cookies.txt     <-- Place file here
+   ├── app.py
+   ...
+   ```
+5. The application will automatically detect and use `cookies.txt` to authenticate downloads.
 
 ---
 
-## Environment Variables
+## ☁️ Streamlit Community Cloud Deployment
 
-| Variable                 | Default                                  | Description                                                     |
-| ------------------------ | ---------------------------------------- | --------------------------------------------------------------- |
-| `GROQ_API_KEY`           | —                                        | **Required.** Your Groq API key                                 |
-| `GROQ_MODEL`             | `openai/gpt-oss-20b`                     | Groq model name                                                 |
-| `EMBEDDING_MODEL`        | `sentence-transformers/all-MiniLM-L6-v2` | Sentence Transformer embedding model                            |
-| `WHISPER_MODEL`          | `base`                                   | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
-| `CHUNK_SIZE`             | `1000`                                   | Characters per transcript chunk                                 |
-| `CHUNK_OVERLAP`          | `200`                                    | Overlap characters between adjacent chunks                      |
-| `TOP_K`                  | `4`                                      | Number of chunks retrieved per question                         |
-| `FORCE_WHISPER_FALLBACK` | `0`                                      | Set to `1` to bypass YouTube captions and force Whisper         |
+Deploying this app to Streamlit Cloud allows public users to access it without needing to install anything.
 
----
+### 1. Push to GitHub
+```bash
+git add .
+git commit -m "Deploy YouTube RAG Assistant"
+git push origin main
+```
 
-## Technology Stack
+### 2. Deploy on Streamlit Cloud
+1. Go to [share.streamlit.io](https://share.streamlit.io) and click **New app**.
+2. Select your repository, branch (`main`), and set Main file path to `app.py`.
+3. Click **Deploy**.
 
-| Component          | Technology                               | Description                                         |
-| ------------------ | ---------------------------------------- | --------------------------------------------------- |
-| **UI**             | Streamlit                                | Interactive web interface                           |
-| **Styling**        | Vanilla CSS                              | Custom tokens & stylesheet (`static/style.css`)     |
-| **Authentication** | SQLite3 + Python StdLib                  | PBKDF2-HMAC-SHA256 & dual sign-in (`utils/auth.py`) |
-| **Transcript API** | `youtube-transcript-api`                 | Official and auto-generated YouTube captions        |
-| **Audio Download** | `yt-dlp`                                 | High-performance audio stream extractor            |
-| **Speech-to-Text** | `openai-whisper`                         | Local audio transcription fallback                  |
-| **Chunking**       | LangChain `RecursiveCharacterTextSplitter` | Overlapping semantic text chunking                |
-| **Embeddings**     | Sentence Transformers (`all-MiniLM-L6-v2`)| 384-dimensional dense text embeddings              |
-| **Vector Store**   | FAISS (`faiss-cpu`)                      | Fast local similarity search                        |
-| **LLM**            | Groq (`openai/gpt-oss-20b`)              | Ultra-fast inference for summaries & answers        |
-| **Chat History**   | SQLite                                   | Per-video conversation persistence                  |
+### 3. Configure Cloud Secrets
+In your Streamlit Cloud app dashboard:
+1. Click **⋮ (three dots)** next to your app → **Settings** → **Secrets**.
+2. Add your secrets in TOML format:
 
----
+```toml
+GROQ_API_KEY = "your_groq_api_key_here"
 
-## Limitations
+YOUTUBE_COOKIES = """
+# Paste the ENTIRE content of your cookies.txt file here
+"""
+```
 
-- Whisper fallback requires local FFmpeg and processing time scales with video length.
-- Groq free tier has token-per-minute rate limits; very long video summarisation may take a few seconds.
-- Private, unlisted, or age-restricted videos cannot be downloaded or transcribed.
-- Grounded answers depend directly on transcript quality.
+3. Click **Save** and **Reboot App**.
+
+> [!NOTE]
+> The included `packages.txt` ensures that `ffmpeg` is automatically installed on Streamlit Cloud's Linux servers.
 
 ---
 
-## Future Improvements
+## ⚙️ Environment Variables Reference
 
-- Multi-video cross-search & playlist ingestion
-- Chapter-aware transcript chunking
-- Support for local audio/video file uploads
-- Real-time streaming LLM responses
-- Export conversation and summary to PDF / Markdown
+| Variable                 | Default                                  | Description                                                                 |
+| ------------------------ | ---------------------------------------- | --------------------------------------------------------------------------- |
+| `GROQ_API_KEY`           | —                                        | **Required.** Your Groq Cloud API key                                       |
+| `GROQ_MODEL`             | `openai/gpt-oss-20b`                     | Groq LLM model name for summaries and RAG Q&A                               |
+| `EMBEDDING_MODEL`        | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model for semantic search                                         |
+| `WHISPER_MODEL`          | `base`                                   | Local Whisper model size (`tiny`, `base`, `small`, `medium`, `large`)       |
+| `GROQ_WHISPER_MODEL`     | `whisper-large-v3-turbo`                 | Groq Cloud Whisper model for accelerated transcription                      |
+| `COOKIES_FILE`           | `cookies.txt`                            | Path to custom Netscape formatted cookies file                              |
+| `COOKIES_FROM_BROWSER`   | —                                        | Browser name for direct cookie extraction (`edge`, `firefox`, `chrome`)     |
+| `YOUTUBE_COOKIES`        | —                                        | Direct cookie string (for Streamlit Cloud secrets)                          |
+| `CHUNK_SIZE`             | `1000`                                   | Character limit per transcript chunk                                        |
+| `CHUNK_OVERLAP`          | `200`                                    | Character overlap between adjacent chunks                                   |
+| `TOP_K`                  | `4`                                      | Number of retrieved chunks sent to the LLM prompt                           |
+| `FORCE_WHISPER_FALLBACK` | `0`                                      | Set to `1` to bypass YouTube caption API and force Whisper audio extraction |
+
+---
+
+## 🔒 Security & Privacy
+
+- **Password Storage**: Passwords are never stored in plaintext. They are salted with 16 random bytes and hashed using PBKDF2-HMAC-SHA256 across 100,000 iterations.
+- **Timing Attacks**: Authentication uses constant-time string comparisons (`secrets.compare_digest`).
+- **Data Isolation**: Each video's transcript, vector store, and chat history are indexed by the YouTube video ID.
+- **Git Protection**: Sensitive files (`.env`, `users.db*`, `cookies.txt`, and temporary audio) are strictly ignored in `.gitignore`.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend UI** | Streamlit (Python) |
+| **Styling & Theme** | Vanilla CSS (`static/style.css`), Inter / Space Grotesk / DM Sans |
+| **Authentication** | SQLite3 + `hashlib` + `secrets` (Python Standard Library) |
+| **Transcript API** | `youtube-transcript-api` |
+| **Audio Downloader**| `yt-dlp` with cookie & player-client fallback |
+| **Speech-to-Text**  | `openai-whisper` & Groq Whisper Cloud |
+| **Chunking**        | LangChain `RecursiveCharacterTextSplitter` |
+| **Embeddings**      | Sentence Transformers (`all-MiniLM-L6-v2`) |
+| **Vector Index**    | FAISS (`faiss-cpu`) |
+| **LLM Inference**   | Groq Cloud (`openai/gpt-oss-20b`) |
+| **Chat Storage**    | SQLite Database |
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).

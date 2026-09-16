@@ -1,6 +1,8 @@
-﻿# Secrets
+# Secrets
 .env
 .streamlit/secrets.toml
+cookies.txt
+*.cookies.txt
 
 # Python
 venv/
@@ -23,4 +25,4 @@ data/
 .DS_Store
 Thumbs.db
 # Database
-#users.db*
+users.db*
