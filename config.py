@@ -65,10 +65,14 @@ EMBEDDING_MODEL: str = _get_config(
     "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
 )
 
-# Whisper model size.
+# Whisper model size for local fallback.
 # Options: tiny, base, small, medium, large
 # "base" is the recommended default for CPU machines.
 WHISPER_MODEL: str = _get_config("WHISPER_MODEL", "base")
+
+# Groq Cloud Whisper model for cloud-accelerated fallback.
+# Options: whisper-large-v3-turbo, whisper-large-v3
+GROQ_WHISPER_MODEL: str = _get_config("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
 
 # Optional browser cookie extraction for yt-dlp if YouTube requires authentication.
 # Options: chrome, edge, firefox, brave, opera, vivaldi, or empty string.
