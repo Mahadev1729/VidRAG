@@ -1,4 +1,4 @@
-# Secrets
+﻿# Secrets
 .env
 .streamlit/secrets.toml
 cookies.txt
@@ -16,7 +16,7 @@ __pycache__/
 
 
 
-data/
+data/audio
 .vscode/
 .idea/
 *.swp
