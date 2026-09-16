@@ -45,12 +45,14 @@ Always False for broad compatibility.
 """
 
 import os
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 import shutil
 import subprocess
 from pathlib import Path
 
 import streamlit as st
-import whisper
 import yt_dlp
 
 from config import (
@@ -105,6 +107,7 @@ def get_whisper_model():
     The first call to this function takes 10-30 seconds (model download
     + load).  Every subsequent call returns the cached model instantly.
     """
+    import whisper
     print(f"[WHISPER] Loading Whisper model '{WHISPER_MODEL}' ...")
     model = whisper.load_model(WHISPER_MODEL)
     print("[WHISPER] Model loaded and cached.")
@@ -144,8 +147,11 @@ def download_audio(
 
     output_template = str(AUDIO_DIR / f"{video_id}.%(ext)s")
 
+    # Disable external plugins that may hang on Windows
+    os.environ["YTDLP_NO_PLUGINS"] = "1"
+
     base_ydl_opts = {
-        "format":    "bestaudio[protocol!=m3u8]/best[protocol!=m3u8]/best",
+        "format":    "bestaudio/best",
         "outtmpl":   output_template,
         "retries":    3,
         "fragment_retries": 3,
@@ -163,12 +169,16 @@ def download_audio(
     }
 
     # Player client priority:
-    # 1. mweb    - Mobile web client; highly resilient and solves JS challenges via Deno/Node
-    # 2. web     - Standard desktop client
-    # 3. default - yt-dlp default extractor with visionos/web fallback
+    # 1. android      - Highly reliable; avoids YouTube's web 403 Forbidden & SABR anti-bot
+    # 2. ios          - Excellent mobile client fallback
+    # 3. mweb         - Mobile web client
+    # 4. web_embedded - Embedded web client
+    # 5. default      - Standard yt-dlp extractor fallback
     client_configs = [
+        {"extractor_args": {"youtube": {"player_client": ["android"]}}},
+        {"extractor_args": {"youtube": {"player_client": ["ios"]}}},
         {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
-        {"extractor_args": {"youtube": {"player_client": ["web"]}}},
+        {"extractor_args": {"youtube": {"player_client": ["web_embedded", "web"]}}},
         {},
     ]
 
