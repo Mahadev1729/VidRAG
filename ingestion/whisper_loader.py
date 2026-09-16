@@ -167,41 +167,49 @@ def download_audio(
         "no_warnings": True,
     }
 
-    # Player client priority:
-    # 1. ios / android - Highly reliable mobile endpoints
-    # 2. tv_embedded / web_embedded - Embedded endpoints bypassing standard web blocks
-    # 3. mweb / web - Mobile web & standard web
-    # 4. default - Standard yt-dlp extractor
-    client_configs = [
-        {"extractor_args": {"youtube": {"player_client": ["ios", "android"]}}},
-        {"extractor_args": {"youtube": {"player_client": ["android"]}}},
-        {"extractor_args": {"youtube": {"player_client": ["tv_embedded", "web_embedded"]}}},
-        {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
-        {},
-    ]
+    # Dynamically resolve cookie file on every run (ensures instant detection without server restart)
+    cookie_file = COOKIES_FILE
+    if not cookie_file or not cookie_file.exists():
+        if (BASE_DIR / "cookies.txt").exists():
+            cookie_file = BASE_DIR / "cookies.txt"
+        elif (DATA_DIR / "cookies.txt").exists():
+            cookie_file = DATA_DIR / "cookies.txt"
 
     ydl_options = []
 
-    # 1. Cookie file has highest success rate against bot detection
-    if COOKIES_FILE and COOKIES_FILE.exists():
-        print(f"[WHISPER] Using cookies file: {COOKIES_FILE}")
-        for cfg in client_configs:
+    # 1. When cookies are available, use default extractor first (direct match for browser session cookies)
+    if cookie_file and cookie_file.exists():
+        print(f"[WHISPER] Using cookies file: {cookie_file}")
+        cookie_configs = [
+            {},
+            {"extractor_args": {"youtube": {"player_client": ["tv_embedded", "web_embedded"]}}},
+            {"extractor_args": {"youtube": {"player_client": ["web_embedded", "web"]}}},
+            {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
+            {"extractor_args": {"youtube": {"player_client": ["android", "ios"]}}},
+        ]
+        for cfg in cookie_configs:
             ydl_options.append({
                 **base_ydl_opts,
-                "cookiefile": str(COOKIES_FILE),
+                "cookiefile": str(cookie_file),
                 **cfg,
             })
 
-    # 2. Direct clients
-    for cfg in client_configs:
+    # 2. Direct clients fallback
+    direct_configs = [
+        {"extractor_args": {"youtube": {"player_client": ["tv_embedded", "web_embedded"]}}},
+        {"extractor_args": {"youtube": {"player_client": ["ios", "android"]}}},
+        {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
+        {},
+    ]
+    for cfg in direct_configs:
         ydl_options.append({
             **base_ydl_opts,
             **cfg,
         })
 
-    # 3. Browser cookies as fallback if configured
+    # 3. Browser cookies fallback if configured
     if COOKIES_FROM_BROWSER:
-        for cfg in client_configs:
+        for cfg in direct_configs:
             ydl_options.append({
                 **base_ydl_opts,
                 "cookiesfrombrowser": (COOKIES_FROM_BROWSER,),
