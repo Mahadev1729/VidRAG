@@ -74,9 +74,29 @@ WHISPER_MODEL: str = _get_config("WHISPER_MODEL", "base")
 # Options: whisper-large-v3-turbo, whisper-large-v3
 GROQ_WHISPER_MODEL: str = _get_config("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
 
+# ── Data Directories ──────────────────────────────────────────────────────────
+DATA_DIR = BASE_DIR / "data"
+TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
+AUDIO_DIR = DATA_DIR / "audio"
+INDEXES_DIR = DATA_DIR / "indexes"
+SUMMARIES_DIR = DATA_DIR / "summaries"
+
+
+# ── Cookie Configuration for yt-dlp ───────────────────────────────────────────
 # Optional browser cookie extraction for yt-dlp if YouTube requires authentication.
 # Options: chrome, edge, firefox, brave, opera, vivaldi, or empty string.
 COOKIES_FROM_BROWSER: str = _get_config("COOKIES_FROM_BROWSER", "").strip().lower()
+
+# Optional cookies.txt file path for yt-dlp (most reliable for YouTube bot verification).
+_custom_cookies_file = _get_config("COOKIES_FILE", "").strip()
+if _custom_cookies_file and Path(_custom_cookies_file).exists():
+    COOKIES_FILE: Path | None = Path(_custom_cookies_file)
+elif (BASE_DIR / "cookies.txt").exists():
+    COOKIES_FILE: Path | None = BASE_DIR / "cookies.txt"
+elif (DATA_DIR / "cookies.txt").exists():
+    COOKIES_FILE: Path | None = DATA_DIR / "cookies.txt"
+else:
+    COOKIES_FILE: Path | None = None
 
 
 # ── Chunking ──────────────────────────────────────────────────────────────────
@@ -91,14 +111,6 @@ CHUNK_OVERLAP: int = int(_get_config("CHUNK_OVERLAP", "200"))
 # Number of chunks returned by FAISS similarity search.
 # k=4 is a sensible default — enough context for most questions.
 TOP_K: int = int(_get_config("TOP_K", "4"))
-
-
-# ── Data Directories ──────────────────────────────────────────────────────────
-DATA_DIR = BASE_DIR / "data"
-TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
-AUDIO_DIR = DATA_DIR / "audio"
-INDEXES_DIR = DATA_DIR / "indexes"
-SUMMARIES_DIR = DATA_DIR / "summaries"
 
 
 # ── Summarisation ─────────────────────────────────────────────────────────────

@@ -47,6 +47,7 @@ Always False for broad compatibility.
 import os
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("YTDLP_NO_PLUGINS", "1")
 
 import shutil
 import subprocess
@@ -57,6 +58,7 @@ import yt_dlp
 
 from config import (
     AUDIO_DIR,
+    COOKIES_FILE,
     COOKIES_FROM_BROWSER,
     GROQ_API_KEY,
     GROQ_WHISPER_MODEL,
@@ -147,9 +149,6 @@ def download_audio(
 
     output_template = str(AUDIO_DIR / f"{video_id}.%(ext)s")
 
-    # Disable external plugins that may hang on Windows
-    os.environ["YTDLP_NO_PLUGINS"] = "1"
-
     base_ydl_opts = {
         "format":    "bestaudio/best",
         "outtmpl":   output_template,
@@ -169,43 +168,45 @@ def download_audio(
     }
 
     # Player client priority:
-    # 1. android      - Highly reliable; avoids YouTube's web 403 Forbidden & SABR anti-bot
-    # 2. ios          - Excellent mobile client fallback
-    # 3. mweb         - Mobile web client
-    # 4. web_embedded - Embedded web client
-    # 5. default      - Standard yt-dlp extractor fallback
+    # 1. ios / android - Highly reliable mobile endpoints
+    # 2. tv_embedded / web_embedded - Embedded endpoints bypassing standard web blocks
+    # 3. mweb / web - Mobile web & standard web
+    # 4. default - Standard yt-dlp extractor
     client_configs = [
+        {"extractor_args": {"youtube": {"player_client": ["ios", "android"]}}},
         {"extractor_args": {"youtube": {"player_client": ["android"]}}},
-        {"extractor_args": {"youtube": {"player_client": ["ios"]}}},
+        {"extractor_args": {"youtube": {"player_client": ["tv_embedded", "web_embedded"]}}},
         {"extractor_args": {"youtube": {"player_client": ["mweb"]}}},
-        {"extractor_args": {"youtube": {"player_client": ["web_embedded", "web"]}}},
         {},
     ]
 
     ydl_options = []
 
-    # Safely probe browser cookies (avoids repetitive failed attempts if browser SQLite DB is locked on Windows)
-    if COOKIES_FROM_BROWSER:
-        try:
-            yt_dlp.cookies.extract_cookies_from_browser(COOKIES_FROM_BROWSER)
-            for cfg in client_configs:
-                ydl_options.append({
-                    **base_ydl_opts,
-                    "cookiesfrombrowser": (COOKIES_FROM_BROWSER,),
-                    **cfg,
-                })
-        except Exception as cookie_err:
-            print(
-                f"[WHISPER] Browser cookie extraction from '{COOKIES_FROM_BROWSER}' "
-                f"unavailable ({cookie_err}). Using resilient player clients."
-            )
+    # 1. Cookie file has highest success rate against bot detection
+    if COOKIES_FILE and COOKIES_FILE.exists():
+        print(f"[WHISPER] Using cookies file: {COOKIES_FILE}")
+        for cfg in client_configs:
+            ydl_options.append({
+                **base_ydl_opts,
+                "cookiefile": str(COOKIES_FILE),
+                **cfg,
+            })
 
-    # Robust fallback without browser cookies using modern clients
+    # 2. Direct clients
     for cfg in client_configs:
         ydl_options.append({
             **base_ydl_opts,
             **cfg,
         })
+
+    # 3. Browser cookies as fallback if configured
+    if COOKIES_FROM_BROWSER:
+        for cfg in client_configs:
+            ydl_options.append({
+                **base_ydl_opts,
+                "cookiesfrombrowser": (COOKIES_FROM_BROWSER,),
+                **cfg,
+            })
 
     if status_callback:
         status_callback("⬇️ Downloading audio...")
@@ -222,9 +223,8 @@ def download_audio(
             last_error = error
             cleanup_audio_files(video_id)
         except Exception as error:
-            raise WhisperTranscriptionError(
-                "Unexpected error while downloading audio."
-            ) from error
+            last_error = error
+            cleanup_audio_files(video_id)
     else:
         error = last_error
         msg = str(error).lower()
@@ -235,6 +235,15 @@ def download_audio(
         if "unavailable" in msg:
             raise WhisperTranscriptionError(
                 "This video is unavailable. Cannot download audio."
+            ) from error
+        if "sign in to confirm you’re not a bot" in msg or "sign in to confirm you're not a bot" in msg or "403" in msg:
+            raise WhisperTranscriptionError(
+                "YouTube requires authentication/bot verification for this video.\n\n"
+                "**Quick Solutions:**\n"
+                "1. **Export YouTube cookies (Recommended):** Use a browser extension (e.g. *Get cookies.txt LOCALLY*) "
+                "to export your cookies from YouTube, and save the file as `cookies.txt` in the project root.\n"
+                "2. **Or configure browser cookies:** Set `COOKIES_FROM_BROWSER=edge` or `COOKIES_FROM_BROWSER=firefox` in `.env`.\n"
+                "3. **Update yt-dlp:** Run `pip install -U yt-dlp` in your terminal."
             ) from error
         raise WhisperTranscriptionError(
             "Failed to download audio from YouTube. "
