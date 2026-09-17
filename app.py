@@ -64,7 +64,13 @@ from retrieval.vector_store import (
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
 from llm.rag import answer_question
+from llm.self_rag import self_corrective_rag_answer
 from llm.summarizer import summarize_video
+from llm.feedback_store import (
+    init_feedback_db,
+    record_feedback,
+    get_feedback_stats,
+)
 
 # ── Chat History (utility, kept at root) ─────────────────────────────────────
 from chat_history import (
@@ -102,9 +108,11 @@ load_css()
 # ============================================================
 
 def init_db() -> None:
-    """Initialize authentication and chat history databases."""
+    """Initialize authentication, chat history, and feedback databases."""
     init_auth_db()
     init_chat_db()
+    init_feedback_db()
+
 
 
 def render_sidebar() -> None:
@@ -276,6 +284,8 @@ def main():
         "youtube_url": None,
         "transcript_segments": None,
         "transcript_source": None,
+        "last_qa": None,
+        "feedback_submitted": False,
     }
 
     for key, value in defaults.items():
@@ -514,11 +524,12 @@ def main():
                     question,
                 )
 
-                # RAG: retrieve + answer (returns answer AND source docs in one call)
-                with st.spinner("Searching the video and generating answer..."):
-                    answer, source_docs = answer_question(
+                # Corrective Self-RAG: evaluate, rewrite if needed, and answer
+                with st.spinner("Analyzing transcript with Adaptive Self-RAG..."):
+                    answer, source_docs, trace = self_corrective_rag_answer(
                         st.session_state.vector_store,
                         question,
+                        video_id=st.session_state.video_id,
                     )
 
                 # Save assistant answer
@@ -529,56 +540,158 @@ def main():
                     answer,
                 )
 
-                # Display answer
-                with st.container(border=True):
-                    st.markdown(
-                        '<p class="section-label">Grounded response</p>',
-                        unsafe_allow_html=True,
-                    )
-                    st.subheader("Answer")
-                    st.write(answer)
-
-                # Timestamp Sources
-                if source_docs:
-                    st.subheader("Relevant video sources")
-                    displayed_times = set()
-                    source_number = 1
-
-                    for doc in source_docs:
-                        start = doc.metadata.get("start")
-                        end = doc.metadata.get("end")
-
-                        if start is None:
-                            continue
-
-                        start_seconds = int(float(start))
-                        if start_seconds in displayed_times:
-                            continue
-                        displayed_times.add(start_seconds)
-
-                        time_text = format_timestamp(start_seconds)
-                        if end is not None:
-                            time_text += f" – {format_timestamp(int(float(end)))}"
-
-                        source_url = make_youtube_url(
-                            st.session_state.video_id, start_seconds
-                        )
-
-                        st.markdown(
-                            f"""
-                            <div class="source-row">
-                                <strong>Source {source_number}</strong>&nbsp;&nbsp;
-                                <code>{time_text}</code>&nbsp;&nbsp;→&nbsp;&nbsp;
-                                <a href="{source_url}" target="_blank">Watch at {format_timestamp(start_seconds)}</a>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                        source_number += 1
+                st.session_state.last_qa = {
+                    "id": str(uuid.uuid4()),
+                    "question": question,
+                    "answer": answer,
+                    "source_docs": source_docs,
+                    "trace": trace,
+                }
+                st.session_state.feedback_submitted = False
 
             except Exception as e:
                 st.error("❌ Error while answering:")
                 st.exception(e)
+
+    # ── Render Latest Answer & Self-Correction Trace ──────────────────────────
+    if st.session_state.last_qa:
+        last_qa = st.session_state.last_qa
+        answer = last_qa["answer"]
+        source_docs = last_qa["source_docs"]
+        trace = last_qa.get("trace", {})
+
+        # Display answer
+        with st.container(border=True):
+            st.markdown(
+                '<p class="section-label">Grounded response</p>',
+                unsafe_allow_html=True,
+            )
+            st.subheader("Answer")
+            st.write(answer)
+
+        # ── 🧠 Self-Correction & Reasoning Trace ─────────────────────────────
+        with st.expander("🧠 Self-Correction & Reasoning Trace", expanded=False):
+            st.markdown("#### Adaptive Pipeline Telemetry")
+
+            if not trace.get("self_rag_enabled", True):
+                st.info("ℹ️ **Baseline RAG Mode Active**: Self-RAG evaluation is disabled in configuration (`ENABLE_SELF_RAG=false`).")
+            else:
+                # 1. Active Correction & Guardrail Notifications
+                if trace.get("fallback_triggered"):
+                    st.error("⚠️ **Conservative Fallback Activated**: The generated claims could not be verified against the transcript. Reverted safely to prevent hallucination.")
+                elif trace.get("grounding_corrected"):
+                    st.warning(
+                        f"🛡️ **Hallucination Intercepted & Self-Corrected**:\n"
+                        f"Initial response contained ungrounded claims (*\"{trace.get('correction_reason', 'Unverified facts')}\"*). "
+                        f"A strict correction pass was automatically executed."
+                    )
+
+                # 2. Retrieval Grading
+                grade_info = trace.get("initial_grade", {})
+                is_relevant = grade_info.get("is_relevant", True)
+                grade_score = grade_info.get("score", 1.0)
+                grade_reason = grade_info.get("reason", "Direct transcript match.")
+
+                col_g1, col_g2 = st.columns([1, 2])
+                with col_g1:
+                    if is_relevant and grade_score >= 0.7:
+                        st.success(f"🎯 Relevance Score: **{int(grade_score * 100)}%**")
+                    else:
+                        st.warning(f"⚠️ Initial Match: **{int(grade_score * 100)}%**")
+                with col_g2:
+                    st.caption(f"**Evaluation**: {grade_reason}")
+
+                # 3. Query Rewriting Status
+                if trace.get("query_rewritten"):
+                    st.info(
+                        "🔄 **Adaptive Query Expansion Triggered**:\n"
+                        "Initial transcript keywords were insufficient. Query was automatically reformulated into:\n"
+                        + "\n".join(f"- *\"{q}\"*" for q in trace.get("rewritten_queries", []))
+                    )
+                    st.caption(f"📚 Discovered **{trace.get('final_chunks_count', 0)}** total context chunks.")
+                else:
+                    st.caption("⚡ **Direct Match**: Search query matched video audio directly without rewriting.")
+
+                # 4. Grounding & Hallucination Guardrail
+                grounding_info = trace.get("grounding_check", {})
+                g_confidence = grounding_info.get("confidence", 1.0)
+                g_notes = grounding_info.get("notes", "All claims verified against transcript.")
+                st.caption(f"🛡️ **Factual Grounding**: {int(g_confidence * 100)}% confidence — *{g_notes}*")
+
+                # 5. Few-shot Memory
+                if trace.get("few_shot_count", 0) > 0:
+                    st.caption(f"💡 **Feedback Memory**: Injected {trace['few_shot_count']} verified high-rated past answers.")
+
+        # ── Timestamp Sources ────────────────────────────────────────────────
+        if source_docs:
+            st.subheader("Relevant video sources")
+            displayed_times = set()
+            source_number = 1
+
+            for doc in source_docs:
+                start = doc.metadata.get("start")
+                end = doc.metadata.get("end")
+
+                if start is None:
+                    continue
+
+                start_seconds = int(float(start))
+                if start_seconds in displayed_times:
+                    continue
+                displayed_times.add(start_seconds)
+
+                time_text = format_timestamp(start_seconds)
+                if end is not None:
+                    time_text += f" – {format_timestamp(int(float(end)))}"
+
+                source_url = make_youtube_url(
+                    st.session_state.video_id, start_seconds
+                )
+
+                st.markdown(
+                    f"""
+                    <div class="source-row">
+                        <strong>Source {source_number}</strong>&nbsp;&nbsp;
+                        <code>{time_text}</code>&nbsp;&nbsp;→&nbsp;&nbsp;
+                        <a href="{source_url}" target="_blank">Watch at {format_timestamp(start_seconds)}</a>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                source_number += 1
+
+        # ── User Feedback & Continuous Learning Loop ────────────────────────
+        st.divider()
+        st.markdown('<p class="section-label">Help the assistant learn</p>', unsafe_allow_html=True)
+        st.caption("Rate this response to reinforce high-quality answers in the self-learning memory.")
+
+        if not st.session_state.feedback_submitted:
+            fb_col1, fb_col2, _ = st.columns([1, 1, 4])
+            with fb_col1:
+                if st.button("👍 Helpful", key=f"thumb_up_{last_qa['id']}", use_container_width=True):
+                    record_feedback(
+                        video_id=st.session_state.video_id,
+                        question=last_qa["question"],
+                        answer=last_qa["answer"],
+                        rating=1,
+                        username=st.session_state.get("username", "User"),
+                    )
+                    st.session_state.feedback_submitted = True
+                    st.rerun()
+
+            with fb_col2:
+                if st.button("👎 Inaccurate", key=f"thumb_down_{last_qa['id']}", use_container_width=True):
+                    record_feedback(
+                        video_id=st.session_state.video_id,
+                        question=last_qa["question"],
+                        answer=last_qa["answer"],
+                        rating=-1,
+                        username=st.session_state.get("username", "User"),
+                    )
+                    st.session_state.feedback_submitted = True
+                    st.rerun()
+        else:
+            st.success("✨ **Thank you!** Your feedback has been saved to the self-learning memory.")
 
     # ── Video Information ─────────────────────────────────────────────────────
     if st.session_state.video_id:
@@ -605,12 +718,17 @@ def main():
             if st.session_state.documents
             else "Pending"
         )
+
+        fb_stats = get_feedback_stats(st.session_state.video_id)
+        rating_text = f"👍 {fb_stats['upvotes']} | 👎 {fb_stats['downvotes']}"
+
         st.markdown(
             f"""
             <div class="info-grid">
                 <div class="info-item"><div class="info-item-label">Video ID</div><div class="info-item-value">{st.session_state.video_id}</div></div>
                 <div class="info-item"><div class="info-item-label">Duration</div><div class="info-item-value">{duration_text}</div></div>
                 <div class="info-item"><div class="info-item-label">Knowledge chunks</div><div class="info-item-value">{chunk_text}</div></div>
+                <div class="info-item"><div class="info-item-label">Community Rating</div><div class="info-item-value">{rating_text}</div></div>
             </div>
             <div class="meta-pill">Transcript: {source_text}</div>
             """,
@@ -620,3 +738,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -118,3 +118,15 @@ TOP_K: int = int(_get_config("TOP_K", "4"))
 # before summarising to stay within those limits.
 SUMMARY_MAX_CHARS: int = int(_get_config("SUMMARY_MAX_CHARS",      "6000"))
 SUMMARY_REQUEST_DELAY: int = int(_get_config("SUMMARY_REQUEST_DELAY",  "5"))
+
+
+# ── Self-RAG & Corrective RAG (CRAG) ─────────────────────────────────────────
+# Enable dynamic self-evaluation, query rewriting, and grounding verification.
+ENABLE_SELF_RAG: bool = _get_config("ENABLE_SELF_RAG", "true").lower() in ("true", "1", "yes")
+
+# Evaluator / query rewriter model.
+GROQ_EVALUATOR_MODEL: str = _get_config("GROQ_EVALUATOR_MODEL", GROQ_MODEL)
+
+# Feedback & Q&A learning memory database
+FEEDBACK_DB_PATH: Path = DATA_DIR / "feedback.db"
+
