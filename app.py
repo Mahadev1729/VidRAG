@@ -78,6 +78,8 @@ from chat_history import (
     save_message,
     get_messages,
     clear_messages,
+    get_user_recent_activity,
+    delete_user_video_activity,
 )
 
 # ── Authentication & Styles ───────────────────────────────────────────────────
@@ -114,9 +116,38 @@ def init_db() -> None:
     init_feedback_db()
 
 
+def load_saved_video_context(video_id: str) -> bool:
+    """Load a previously indexed video's vector store, summary, and segments from disk."""
+    index_dir = INDEXES_DIR / video_id
+    index_file = index_dir / "index.faiss"
+    pkl_file = index_dir / "index.pkl"
+    if not (index_file.exists() and pkl_file.exists()):
+        return False
+
+    st.session_state.video_id = video_id
+    st.session_state.youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+    st.session_state.vector_store = load_vector_store(index_dir)
+
+    summary_file = SUMMARIES_DIR / f"{video_id}.txt"
+    if summary_file.exists():
+        st.session_state.summary = summary_file.read_text(encoding="utf-8")
+    else:
+        st.session_state.summary = None
+
+    try:
+        segments, source = get_transcript_with_timestamps(f"https://www.youtube.com/watch?v={video_id}")
+        st.session_state.transcript_segments = segments
+        st.session_state.transcript_source = source
+    except Exception:
+        pass
+
+    st.session_state.last_qa = None
+    st.session_state.feedback_submitted = False
+    return True
+
 
 def render_sidebar() -> None:
-    """Render authenticated user badge and logout button in sidebar."""
+    """Render authenticated user badge, recent activity drawer, and logout button in sidebar."""
     username = st.session_state.get("username", "User")
     st.sidebar.markdown(
         f"""
@@ -130,6 +161,29 @@ def render_sidebar() -> None:
     if st.sidebar.button("🚪 Log Out", use_container_width=True):
         st.session_state.clear()
         st.rerun()
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📜 Your Recent Activity")
+
+    activities = get_user_recent_activity(username, limit=10)
+    if activities:
+        for item in activities:
+            vid = item["video_id"]
+            q_preview = item["last_question"]
+            if len(q_preview) > 32:
+                q_preview = q_preview[:30] + "..."
+            msg_cnt = item["message_count"]
+            is_active = (st.session_state.get("video_id") == vid)
+
+            btn_prefix = "▶ " if is_active else ""
+            btn_label = f"{btn_prefix}🎬 {vid} ({msg_cnt} msgs)\n{q_preview}"
+            if st.sidebar.button(btn_label, key=f"act_btn_{vid}", use_container_width=True):
+                if load_saved_video_context(vid):
+                    st.rerun()
+                else:
+                    st.sidebar.warning(f"Cached index missing for `{vid}`. Please paste its URL to re-index.")
+    else:
+        st.sidebar.caption("No past activity yet. Ask questions about a video to save history!")
 
 
 # ============================================================
@@ -474,9 +528,10 @@ def main():
             st.markdown(st.session_state.summary)
 
     # ── Chat History ──────────────────────────────────────────────────────────
+    username = st.session_state.get("username", "User")
     if st.session_state.video_id:
         messages = get_messages(
-            st.session_state.session_id,
+            username,
             st.session_state.video_id,
         )
 
@@ -488,11 +543,12 @@ def main():
                 with st.chat_message(role):
                     st.write(message)
 
-            if st.button("🗑️ Clear Chat"):
+            if st.button("🗑️ Clear Chat History for This Video"):
                 clear_messages(
-                    st.session_state.session_id,
+                    username,
                     st.session_state.video_id,
                 )
+                st.session_state.last_qa = None
                 st.rerun()
 
     # ── Ask Questions ─────────────────────────────────────────────────────────
@@ -518,7 +574,7 @@ def main():
             try:
                 # Save user question
                 save_message(
-                    st.session_state.session_id,
+                    username,
                     st.session_state.video_id,
                     "user",
                     question,
@@ -534,7 +590,7 @@ def main():
 
                 # Save assistant answer
                 save_message(
-                    st.session_state.session_id,
+                    username,
                     st.session_state.video_id,
                     "assistant",
                     answer,
