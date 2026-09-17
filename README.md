@@ -1,6 +1,6 @@
-# 🎥 YouTube RAG Assistant
+# 🎥 YouTube RAG & Self-Reflective AI Assistant
 
-A modern, production-ready AI assistant that lets you **summarise any YouTube video and ask questions about its content** — grounded strictly in what the video actually says.
+A modern, production-ready AI assistant that lets you **summarise any YouTube video and ask questions about its content** — powered by **Self-RAG**, **Corrective RAG (CRAG)**, and **continuous feedback memory**.
 
 Built with **Python**, **Streamlit**, **LangChain**, **Sentence Transformers**, **FAISS**, **Groq LLM**, **OpenAI Whisper**, and **SQLite**.
 
@@ -15,7 +15,16 @@ Built with **Python**, **Streamlit**, **LangChain**, **Sentence Transformers**, 
 - 📝 **Automatic Captions**: Fetches transcripts instantly via the YouTube Transcript API (zero download overhead for 90%+ of videos).
 - 🎙️ **Whisper Fallback Pipeline**: Automatically falls back to downloading audio and running Whisper speech-to-text when captions are disabled or unavailable.
 - 🍪 **YouTube Bot & SABR Bypass**: Built-in authentication support for `cookies.txt` and Streamlit Cloud secrets to bypass YouTube's `Sign in to confirm you're not a bot` and `HTTP 403: Forbidden` errors.
-- 🧠 **RAG (Retrieval-Augmented Generation)**: Grounded question answering strictly based on retrieved transcript segments.
+- 🧠 **Self-RAG & Corrective RAG (CRAG)**:
+  - **Document Relevance Grading**: Evaluates whether retrieved chunks contain sufficient context to answer the question.
+  - **Adaptive Query Expansion**: Automatically reformulates queries into conversational video search phrases when initial retrieval is weak.
+  - **Active Hallucination Guardrail**: Intercepts ungrounded claims and runs an automatic self-correction pass before returning answers.
+  - **Conservative Fallback**: Reverts safely to ungrounded disclaimers if claims cannot be verified against the transcript.
+- 💡 **Continuous Learning Memory**:
+  - User feedback system (👍 / 👎) saved to SQLite.
+  - Verified high-quality past Q&A pairs are dynamically injected as few-shot examples into future prompts.
+  - Community satisfaction metrics displayed in the video overview.
+- 🔬 **Reasoning Trace & Telemetry Expander**: Interactive UI inspector displaying real-time retrieval grades, query rewrites, and factual grounding confidence.
 - 📍 **Clickable Timestamps**: Every answer citation links directly to the exact second in the YouTube video.
 - 📄 **Automatic Video Summary**: High-level key takeaways and structured outlines generated instantly via Groq.
 - 💬 **Persistent Conversation History**: Video-specific chat history stored locally in SQLite.
@@ -46,37 +55,32 @@ retrieval/
   ▼
 llm/
   ├── groq_client.py          → Groq API client (shared)
-  ├── rag.py                  → Retrieval + prompt + answer with sources
+  ├── self_rag.py             → Self-RAG (grading, rewriting, grounding & self-correction)
+  ├── feedback_store.py       → Feedback ratings & dynamic few-shot memory DB
+  ├── rag.py                  → Baseline RAG fallback
   └── summarizer.py           → Multi-chunk video summarisation
 ```
 
-### 🔄 Data Flow
+### 🔄 Self-RAG & CRAG Data Flow
 
 ```
-1. Authentication
-   Username/Email + Password ──► PBKDF2 Constant-Time Check ──► Authenticated Session
+1. Ingestion & Indexing
+   YouTube URL ──► Transcript API / Whisper ──► Chunks ──► FAISS Vector Store
 
-2. Ingestion & Vectorisation
-   YouTube URL
+2. Adaptive Retrieval & Grading
+   User Question ──► FAISS Similarity Search (Top-k Chunks)
         ↓
-    ingestion/
-        ├── YouTube Transcript API  ──► SUCCESS → Segments
-        └── (Captions missing) ──► yt-dlp (cookies.txt) → MP3 → Whisper → Segments
-        ↓
-   Timestamped Transcript Segments
-        ↓
-    ingestion/chunker.py (1000 char chunks, 200 char overlap)
-        ↓
-    retrieval/embeddings.py (384-dimensional dense vectors)
-        ↓
-    retrieval/vector_store.py (FAISS Index stored in data/indexes/)
+   Document Relevance Grading (Groq Evaluator)
+        ├─► [Score >= 0.5] ──► Proceed to Generation
+        └─► [Score < 0.5]  ──► Adaptive Query Rewriting ──► Secondary Retrieval ──► Merge Chunks
 
-3. RAG Q&A Pipeline
-   User Question ──► FAISS Similarity Search (Top-4 Chunks)
-        ↓
-    llm/rag.py ──► Grounded Prompt ──► Groq Cloud LLM
-        ↓
-   Answer with Clickable Video Timestamps
+3. Few-Shot Memory & Generation
+   Fetch Verified Past Q&A (Feedback DB) ──► Assemble Grounded Prompt ──► Groq Generation
+
+4. Grounding & Active Self-Correction Guardrail
+   Factual Grounding Check
+        ├─► [Grounded]   ──► Return Answer + Source Timestamps + Reasoning Trace
+        └─► [Ungrounded] ──► Active Correction Pass ──► (If still ungrounded) Conservative Fallback
 ```
 
 ---
@@ -121,14 +125,17 @@ YoutubeChatBot_RAG/
 ├── llm/
 │   ├── __init__.py
 │   ├── groq_client.py      ← Shared Groq API client
-│   ├── rag.py              ← Grounded question answering with citations
+│   ├── self_rag.py         ← Self-RAG & Corrective RAG pipeline
+│   ├── feedback_store.py   ← User feedback DB & dynamic few-shot retrieval
+│   ├── rag.py              ← Baseline RAG implementation
 │   └── summarizer.py       ← Multi-chunk video summarizer
 │
-└── data/                   ← Local persistent storage
+└── data/                   ← Local persistent storage (gitignored)
     ├── transcripts/        ← Cached raw transcript files
     ├── audio/              ← Temporary audio files (auto-cleaned)
     ├── indexes/            ← Cached FAISS vector stores per video
     ├── summaries/          ← Cached summary files
+    ├── feedback.db         ← Feedback ratings & verified Q&A memory
     └── chat_history.db     ← SQLite chat messages
 ```
 
@@ -213,7 +220,7 @@ Deploying this app to Streamlit Cloud allows public users to access it without n
 ### 1. Push to GitHub
 ```bash
 git add .
-git commit -m "Deploy YouTube RAG Assistant"
+git commit -m "Deploy YouTube Self-RAG Assistant"
 git push origin main
 ```
 
@@ -247,7 +254,9 @@ YOUTUBE_COOKIES = """
 | Variable                 | Default                                  | Description                                                                 |
 | ------------------------ | ---------------------------------------- | --------------------------------------------------------------------------- |
 | `GROQ_API_KEY`           | —                                        | **Required.** Your Groq Cloud API key                                       |
-| `GROQ_MODEL`             | `openai/gpt-oss-20b`                     | Groq LLM model name for summaries and RAG Q&A                               |
+| `GROQ_MODEL`             | `openai/gpt-oss-20b`                     | Primary Groq LLM for summaries and RAG generation                           |
+| `GROQ_EVALUATOR_MODEL`   | `openai/gpt-oss-20b`                     | Groq model for grading retrieval, query rewriting, and grounding checks     |
+| `ENABLE_SELF_RAG`        | `true`                                   | Set to `true` to enable Self-RAG / CRAG adaptive pipeline                   |
 | `EMBEDDING_MODEL`        | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model for semantic search                                         |
 | `WHISPER_MODEL`          | `base`                                   | Local Whisper model size (`tiny`, `base`, `small`, `medium`, `large`)       |
 | `GROQ_WHISPER_MODEL`     | `whisper-large-v3-turbo`                 | Groq Cloud Whisper model for accelerated transcription                      |
@@ -265,8 +274,8 @@ YOUTUBE_COOKIES = """
 
 - **Password Storage**: Passwords are never stored in plaintext. They are salted with 16 random bytes and hashed using PBKDF2-HMAC-SHA256 across 100,000 iterations.
 - **Timing Attacks**: Authentication uses constant-time string comparisons (`secrets.compare_digest`).
-- **Data Isolation**: Each video's transcript, vector store, and chat history are indexed by the YouTube video ID.
-- **Git Protection**: Sensitive files (`.env`, `users.db*`, `cookies.txt`, and temporary audio) are strictly ignored in `.gitignore`.
+- **Data Isolation**: Each video's transcript, vector store, chat history, and feedback memory are indexed by the YouTube video ID.
+- **Git Protection**: Sensitive files (`.env`, `users.db*`, `cookies.txt`, `data/`, and temporary audio) are strictly ignored in `.gitignore`.
 
 ---
 
@@ -277,6 +286,8 @@ YOUTUBE_COOKIES = """
 | **Frontend UI** | Streamlit (Python) |
 | **Styling & Theme** | Vanilla CSS (`static/style.css`), Inter / Space Grotesk / DM Sans |
 | **Authentication** | SQLite3 + `hashlib` + `secrets` (Python Standard Library) |
+| **Adaptive RAG** | Self-RAG & Corrective RAG (CRAG) Pipeline |
+| **Feedback Memory** | SQLite3 Verified Few-Shot Store |
 | **Transcript API** | `youtube-transcript-api` |
 | **Audio Downloader**| `yt-dlp` with cookie & player-client fallback |
 | **Speech-to-Text**  | `openai-whisper` & Groq Whisper Cloud |
@@ -291,3 +302,4 @@ YOUTUBE_COOKIES = """
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
