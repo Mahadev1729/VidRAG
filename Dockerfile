@@ -24,9 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies and pre-cache embedding model so container starts instantly
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt \
+    && python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='sentence-transformers/all-MiniLM-L6-v2')"
 
 # Copy Backend Source Code
 COPY backend/ ./backend/
@@ -44,4 +45,4 @@ WORKDIR /app/backend
 EXPOSE 8000
 
 # Start FastAPI server using uvicorn binding to 0.0.0.0 and $PORT
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]

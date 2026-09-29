@@ -1,8 +1,6 @@
-# 🎥 YouTube RAG & Self-Reflective AI Assistant
+# 🎥 VidRAG — YouTube AI Intelligence (RAG + TiDB Vector)
 
-A modern, production-ready AI assistant that lets you **summarise any YouTube video and ask questions about its content** — powered by **Self-RAG**, **Corrective RAG (CRAG)**, and **continuous feedback memory**.
-
-Built with **Python**, **Streamlit**, **LangChain**, **Sentence Transformers**, **FAISS**, **Groq LLM**, **OpenAI Whisper**, and **SQLite**.
+A modern, production-ready AI workspace that lets you **summarise any YouTube video and ask questions about its content** — powered by **FastAPI**, **React (Vite)**, **TiDB Cloud Serverless Vector Store**, **Groq LLaMA 3.3**, and **FastEmbed (ONNX Runtime)**.
 
 ---
 

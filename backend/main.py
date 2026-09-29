@@ -395,7 +395,7 @@ for s_dir in STATIC_DIRS:
 
         @app.get("/{full_path:path}", include_in_schema=False)
         async def serve_spa(full_path: str):
-            if full_path.startswith("api/"):
+            if full_path.startswith("api"):
                 raise HTTPException(status_code=404, detail="API route not found")
             target = s_dir / full_path
             if target.is_file():
@@ -409,3 +409,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+
