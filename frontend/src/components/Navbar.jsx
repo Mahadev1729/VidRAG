@@ -1,130 +1,145 @@
 import React from 'react';
-import { Sparkles, Database, Youtube, User, LogOut, LogIn } from 'lucide-react';
+import { Sparkles, Database, Youtube, User, LogOut } from 'lucide-react';
 
-export default function Navbar({ user, onOpenAuth, onLogout, onOpenSummary, currentVideoId }) {
+export default function Navbar({ user, onLogout, onOpenSummary, currentVideoId }) {
   return (
-    <header className="glass-panel" style={{ borderRadius: '0 0 16px 16px', borderTop: 'none', padding: '1rem 2rem', marginBottom: '1.5rem' }}>
+    <header className="glass-panel" style={{ borderRadius: '0 0 14px 14px', borderTop: 'none', padding: '0.85rem 1.5rem', marginBottom: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         
         {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div style={{ 
-            background: 'var(--accent-gradient)', 
-            padding: '8px', 
-            borderRadius: '12px', 
+            background: '#ffffff', 
+            padding: '7px', 
+            borderRadius: '10px', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            boxShadow: 'var(--accent-glow)'
+            boxShadow: '0 0 15px rgba(255, 255, 255, 0.25)'
           }}>
-            <Youtube size={24} color="#ffffff" />
+            <Youtube size={20} color="#000000" />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-              Vid<span className="gradient-text">RAG</span>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px', color: '#ffffff' }}>
+              Vid<span style={{ color: '#a1a1aa' }}>RAG</span>
             </h1>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              YouTube AI Chatbot &bull; TiDB Vector Cloud
-            </p>
           </div>
         </div>
 
         {/* Tech Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.4rem', 
-            background: 'rgba(99, 102, 241, 0.1)', 
-            border: '1px solid rgba(99, 102, 241, 0.3)',
+            gap: '0.35rem', 
+            background: 'rgba(255, 255, 255, 0.05)', 
+            border: '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: '20px',
-            padding: '4px 12px',
-            fontSize: '0.8rem',
-            color: '#a5b4fc'
+            padding: '4px 10px',
+            fontSize: '0.75rem',
+            color: '#e4e4e7'
           }}>
-            <Database size={14} />
-            <span>TiDB Serverless Vector</span>
+            <Database size={13} color="#a1a1aa" />
+            <span>TiDB Vector</span>
           </div>
 
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.4rem', 
-            background: 'rgba(236, 72, 153, 0.1)', 
-            border: '1px solid rgba(236, 72, 153, 0.3)',
+            gap: '0.35rem', 
+            background: 'rgba(255, 255, 255, 0.05)', 
+            border: '1px solid rgba(255, 255, 255, 0.12)',
             borderRadius: '20px',
-            padding: '4px 12px',
-            fontSize: '0.8rem',
-            color: '#f472b6'
+            padding: '4px 10px',
+            fontSize: '0.75rem',
+            color: '#e4e4e7'
           }}>
-            <Sparkles size={14} />
-            <span>Groq LLaMA 3.3</span>
+            <Sparkles size={13} color="#a1a1aa" />
+            <span>Groq LLaMA</span>
           </div>
         </div>
 
         {/* User / Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           {currentVideoId && (
             <button
               onClick={onOpenSummary}
               style={{
-                background: 'rgba(255, 255, 255, 0.06)',
+                background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid var(--border-subtle)',
-                color: '#e2e8f0',
-                padding: '6px 14px',
+                color: '#ffffff',
+                padding: '6px 12px',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '0.85rem',
+                fontSize: '0.8rem',
                 fontWeight: '500',
                 transition: 'all 0.2s',
               }}
-              onMouseEnter={(e) => e.target.style.borderColor = 'var(--accent-primary)'}
-              onMouseLeave={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+              onMouseEnter={(e) => {
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                e.target.style.background = 'rgba(255, 255, 255, 0.12)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.borderColor = 'var(--border-subtle)';
+                e.target.style.background = 'rgba(255, 255, 255, 0.08)';
+              }}
             >
-              📝 Video Summary
+              Summary
             </button>
           )}
 
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '0.5rem',
-                background: 'rgba(255, 255, 255, 0.05)',
-                padding: '6px 12px',
-                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.07)',
+                padding: '4px 10px',
+                borderRadius: '10px',
                 border: '1px solid var(--border-subtle)',
-                fontSize: '0.85rem'
+                fontSize: '0.82rem'
               }}>
-                <User size={15} color="#818cf8" />
-                <span style={{ fontWeight: '600', color: '#f8fafc' }}>{user.username}</span>
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <User size={14} color="#a1a1aa" />
+                )}
+                <span style={{ fontWeight: '600', color: '#ffffff' }}>{user.username}</span>
               </div>
               <button
                 onClick={onLogout}
-                title="Logout"
+                title="Sign Out"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: '#a1a1aa',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '6px',
+                  padding: '6px 8px',
+                  fontSize: '0.75rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                  e.target.style.color = '#f87171';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  e.target.style.color = '#a1a1aa';
                 }}
               >
-                <LogOut size={18} />
+                <LogOut size={13} />
               </button>
             </div>
-          ) : (
-            <button
-              onClick={onOpenAuth}
-              className="gradient-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '7px 16px', fontSize: '0.85rem' }}
-            >
-              <LogIn size={15} />
-              <span>Sign In</span>
-            </button>
           )}
         </div>
 

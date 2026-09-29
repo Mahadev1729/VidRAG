@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { X, FileText, Loader2, Sparkles } from 'lucide-react';
+import { X, Loader2, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function SummaryModal({ isOpen, onClose, videoUrl, videoId }) {
@@ -36,8 +36,8 @@ export default function SummaryModal({ isOpen, onClose, videoUrl, videoId }) {
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(8px)',
+      background: 'rgba(0, 0, 0, 0.85)',
+      backdropFilter: 'blur(10px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -46,48 +46,52 @@ export default function SummaryModal({ isOpen, onClose, videoUrl, videoId }) {
     }}>
       <div className="glass-panel" style={{
         width: '100%',
-        maxWidth: '750px',
+        maxWidth: '700px',
         maxHeight: '85vh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'rgba(15, 23, 42, 0.95)',
-        boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+        background: 'rgba(18, 18, 20, 0.95)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
       }}>
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem',
+          padding: '1rem 1.25rem',
           borderBottom: '1px solid var(--border-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Sparkles size={20} color="#ec4899" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>AI Video Summary</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={18} color="#ffffff" />
+            <h3 style={{ fontSize: '1rem', fontWeight: '700', color: '#ffffff' }}>Video Summary</h3>
           </div>
           <button
             onClick={onClose}
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: '#71717a',
               cursor: 'pointer',
               padding: '4px',
+              transition: 'color 0.15s',
             }}
+            onMouseEnter={(e) => e.target.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.target.style.color = '#71717a'}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, fontSize: '0.95rem', lineHeight: '1.6' }}>
+        <div style={{ padding: '1.25rem', overflowY: 'auto', flex: 1, fontSize: '0.9rem', lineHeight: '1.6', color: '#f4f4f5' }}>
           {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '1rem', color: '#818cf8' }}>
-              <Loader2 size={32} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-              <p>Extracting video sections & generating executive summary...</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '0.85rem', color: '#a1a1aa' }}>
+              <Loader2 size={28} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+              <p style={{ fontSize: '0.85rem' }}>Generating summary...</p>
             </div>
           ) : error ? (
-            <div style={{ color: '#f87171', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px' }}>
+            <div style={{ color: '#f87171', padding: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', fontSize: '0.85rem' }}>
               {error}
             </div>
           ) : (
@@ -97,13 +101,13 @@ export default function SummaryModal({ isOpen, onClose, videoUrl, videoId }) {
 
         {/* Footer */}
         <div style={{
-          padding: '1rem 1.5rem',
+          padding: '0.85rem 1.25rem',
           borderTop: '1px solid var(--border-subtle)',
           display: 'flex',
           justifyContent: 'flex-end',
         }}>
-          <button onClick={onClose} className="gradient-btn" style={{ padding: '8px 20px' }}>
-            Done
+          <button onClick={onClose} className="gradient-btn" style={{ padding: '7px 18px', fontSize: '0.85rem' }}>
+            Close
           </button>
         </div>
       </div>

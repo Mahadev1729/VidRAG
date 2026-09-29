@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, ThumbsUp, ThumbsDown, Trash2, Bot, User, Loader2, Play } from 'lucide-react';
+import { Send, Trash2, Bot, User, Loader2, Play } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function ChatInterface({ videoId, onSeek, isProcessing }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [feedbackSent, setFeedbackSent] = useState({});
   const messagesEndRef = useRef(null);
 
   // Load chat history when videoId changes
@@ -75,16 +74,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
     }
   };
 
-  const handleFeedback = async (msgIndex, msg, rating) => {
-    if (feedbackSent[msgIndex]) return;
-    try {
-      await api.sendFeedback(videoId, msg.question || "Video Q&A", msg.content, rating);
-      setFeedbackSent(prev => ({ ...prev, [msgIndex]: rating > 0 ? 'up' : 'down' }));
-    } catch (err) {
-      console.error("Feedback failed:", err);
-    }
-  };
-
   const handleClearHistory = async () => {
     if (!videoId) return;
     if (window.confirm("Are you sure you want to clear the chat history for this video?")) {
@@ -100,23 +89,23 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
   ];
 
   return (
-    <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '650px', overflow: 'hidden' }}>
+    <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '620px', overflow: 'hidden' }}>
       
       {/* Header */}
       <div style={{
-        padding: '1rem 1.25rem',
+        padding: '0.85rem 1.15rem',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(15, 23, 42, 0.4)'
+        background: 'rgba(12, 12, 14, 0.8)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Bot size={20} color="#818cf8" />
-          <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>AI Video Assistant</h3>
+          <Bot size={18} color="#ffffff" />
+          <h3 style={{ fontSize: '0.92rem', fontWeight: '600', color: '#ffffff' }}>AI Chat</h3>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {messages.length > 0 && (
             <button
               onClick={handleClearHistory}
@@ -124,20 +113,23 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#64748b',
+                color: '#71717a',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
+                transition: 'color 0.2s',
               }}
+              onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+              onMouseLeave={(e) => e.target.style.color = '#71717a'}
             >
-              <Trash2 size={16} />
+              <Trash2 size={15} />
             </button>
           )}
         </div>
       </div>
 
       {/* Messages Scroll Area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {messages.length === 0 ? (
           <div style={{
             height: '100%',
@@ -145,44 +137,44 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#64748b',
+            color: '#71717a',
             textAlign: 'center',
-            gap: '1rem'
+            gap: '0.85rem'
           }}>
-            <Bot size={40} color="#475569" />
+            <Bot size={36} color="#3f3f46" />
             <div>
-              <h4 style={{ color: '#cbd5e1', marginBottom: '0.25rem' }}>Ready to analyze video</h4>
-              <p style={{ fontSize: '0.85rem' }}>Ask any question or pick a prompt below to get started.</p>
+              <h4 style={{ color: '#e4e4e7', marginBottom: '0.2rem', fontSize: '0.95rem' }}>Ask anything</h4>
+              <p style={{ fontSize: '0.8rem', color: '#71717a' }}>Query transcript timestamps or get key insights.</p>
             </div>
 
             {/* Quick Suggestions */}
             {videoId && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', maxWidth: '360px', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', maxWidth: '340px', marginTop: '0.5rem' }}>
                 {quickQuestions.map((q, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSend(null, q)}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
+                      background: 'rgba(255, 255, 255, 0.03)',
                       border: '1px solid var(--border-subtle)',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      color: '#cbd5e1',
-                      fontSize: '0.8rem',
+                      borderRadius: '7px',
+                      padding: '7px 11px',
+                      color: '#d4d4d8',
+                      fontSize: '0.78rem',
                       textAlign: 'left',
                       cursor: 'pointer',
-                      transition: 'all 0.2s',
+                      transition: 'all 0.15s ease',
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.borderColor = 'var(--accent-primary)';
-                      e.target.style.background = 'rgba(99, 102, 241, 0.1)';
+                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                      e.target.style.background = 'rgba(255, 255, 255, 0.08)';
                     }}
                     onMouseLeave={(e) => {
                       e.target.style.borderColor = 'var(--border-subtle)';
-                      e.target.style.background = 'rgba(255, 255, 255, 0.04)';
+                      e.target.style.background = 'rgba(255, 255, 255, 0.03)';
                     }}
                   >
-                    ✨ {q}
+                    {q}
                   </button>
                 ))}
               </div>
@@ -194,47 +186,47 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
               key={index}
               style={{
                 display: 'flex',
-                gap: '0.75rem',
+                gap: '0.65rem',
                 alignItems: 'flex-start',
                 flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
               }}
             >
               {/* Avatar */}
               <div style={{
-                background: msg.role === 'user' ? 'var(--accent-primary)' : 'rgba(30, 41, 59, 0.9)',
+                background: msg.role === 'user' ? '#ffffff' : 'rgba(24, 24, 27, 0.9)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '50%',
-                width: '32px',
-                height: '32px',
+                width: '28px',
+                height: '28px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}>
-                {msg.role === 'user' ? <User size={16} color="#ffffff" /> : <Bot size={16} color="#818cf8" />}
+                {msg.role === 'user' ? <User size={14} color="#000000" /> : <Bot size={14} color="#ffffff" />}
               </div>
 
               {/* Message Body */}
               <div style={{
                 maxWidth: '85%',
-                background: msg.role === 'user' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(18, 24, 38, 0.9)',
+                background: msg.role === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(18, 18, 20, 0.9)',
                 border: '1px solid',
-                borderColor: msg.role === 'user' ? 'rgba(99, 102, 241, 0.4)' : 'var(--border-subtle)',
-                borderRadius: '12px',
-                padding: '0.85rem 1.1rem',
-                fontSize: '0.9rem',
+                borderColor: msg.role === 'user' ? 'rgba(255, 255, 255, 0.2)' : 'var(--border-subtle)',
+                borderRadius: '10px',
+                padding: '0.75rem 1rem',
+                fontSize: '0.88rem',
                 lineHeight: '1.5',
-                color: '#f1f5f9',
+                color: '#f4f4f5',
               }}>
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
 
                 {/* Timestamp Citations */}
                 {msg.citations && msg.citations.length > 0 && (
-                  <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.35rem', fontWeight: '600' }}>
-                      Timestamp Citations:
+                  <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.45rem' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#71717a', marginBottom: '0.3rem', fontWeight: '600' }}>
+                      Citations:
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                       {msg.citations.map((cite, cIdx) => (
                         <button
                           key={cIdx}
@@ -242,58 +234,24 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.3rem',
-                            background: 'rgba(99, 102, 241, 0.15)',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
-                            color: '#a5b4fc',
-                            borderRadius: '6px',
-                            padding: '3px 8px',
-                            fontSize: '0.75rem',
+                            gap: '0.25rem',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            borderRadius: '5px',
+                            padding: '2px 7px',
+                            fontSize: '0.72rem',
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
+                            transition: 'all 0.15s',
                           }}
-                          onMouseEnter={(e) => e.target.style.background = 'rgba(99, 102, 241, 0.3)'}
-                          onMouseLeave={(e) => e.target.style.background = 'rgba(99, 102, 241, 0.15)'}
+                          onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+                          onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.08)'}
                         >
-                          <Play size={10} fill="#a5b4fc" />
+                          <Play size={9} fill="#ffffff" />
                           <span>{cite.timestamp}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {/* Feedback buttons */}
-                {msg.role === 'assistant' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.6rem' }}>
-                    <button
-                      onClick={() => handleFeedback(index, msg, 1)}
-                      title="Helpful Answer"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: feedbackSent[index] === 'up' ? '#34d399' : '#64748b',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <ThumbsUp size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleFeedback(index, msg, -1)}
-                      title="Not Helpful"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: feedbackSent[index] === 'down' ? '#f87171' : '#64748b',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <ThumbsDown size={14} />
-                    </button>
                   </div>
                 )}
               </div>
@@ -302,32 +260,32 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
         )}
 
         {loading && (
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
             <div style={{
-              background: 'rgba(30, 41, 59, 0.9)',
+              background: 'rgba(24, 24, 27, 0.9)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '50%',
-              width: '32px',
-              height: '32px',
+              width: '28px',
+              height: '28px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <Bot size={16} color="#818cf8" />
+              <Bot size={14} color="#ffffff" />
             </div>
             <div style={{
-              background: 'rgba(18, 24, 38, 0.9)',
+              background: 'rgba(18, 18, 20, 0.9)',
               border: '1px solid var(--border-subtle)',
-              borderRadius: '12px',
-              padding: '0.75rem 1rem',
+              borderRadius: '10px',
+              padding: '0.65rem 0.85rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              fontSize: '0.85rem',
-              color: '#94a3b8',
+              gap: '0.45rem',
+              fontSize: '0.8rem',
+              color: '#a1a1aa',
             }}>
-              <Loader2 size={16} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-              <span>Analyzing transcript & querying TiDB Vector Store...</span>
+              <Loader2 size={14} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Thinking...</span>
             </div>
           </div>
         )}
@@ -337,27 +295,27 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
 
       {/* Input Box */}
       <form onSubmit={handleSend} style={{
-        padding: '1rem',
+        padding: '0.75rem',
         borderTop: '1px solid var(--border-subtle)',
-        background: 'rgba(15, 23, 42, 0.6)',
+        background: 'rgba(12, 12, 14, 0.9)',
         display: 'flex',
-        gap: '0.75rem',
+        gap: '0.5rem',
         alignItems: 'center',
       }}>
         <input
           type="text"
-          placeholder={videoId ? "Ask anything about the video..." : "Please index a video first..."}
+          placeholder={videoId ? "Ask about this video..." : "Index a video first..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={!videoId || loading || isProcessing}
           style={{
             flex: 1,
-            background: 'rgba(15, 23, 42, 0.8)',
+            background: 'rgba(24, 24, 27, 0.7)',
             border: '1px solid var(--border-subtle)',
-            borderRadius: '10px',
-            color: '#f8fafc',
-            padding: '10px 14px',
-            fontSize: '0.9rem',
+            borderRadius: '8px',
+            color: '#f4f4f5',
+            padding: '9px 12px',
+            fontSize: '0.88rem',
             outline: 'none',
           }}
         />
@@ -367,13 +325,14 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
           disabled={!videoId || !input.trim() || loading || isProcessing}
           className="gradient-btn"
           style={{
-            padding: '10px 18px',
+            padding: '9px 15px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            borderRadius: '8px',
           }}
         >
-          <Send size={16} />
+          <Send size={15} />
         </button>
       </form>
 

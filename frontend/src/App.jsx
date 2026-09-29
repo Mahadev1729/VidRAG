@@ -4,9 +4,9 @@ import VideoProcessor from './components/VideoProcessor';
 import YouTubePlayer from './components/YouTubePlayer';
 import ChatInterface from './components/ChatInterface';
 import SummaryModal from './components/SummaryModal';
-import AuthModal from './components/AuthModal';
+import AuthPage from './components/AuthPage';
 import { getStoredUser, removeAuthToken, removeStoredUser, api } from './services/api';
-import { History, PlaySquare, Sparkles } from 'lucide-react';
+import { History, PlaySquare } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -14,10 +14,10 @@ export default function App() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [userVideos, setUserVideos] = useState([]);
 
+  // Auto-login from stored session
   useEffect(() => {
     const savedUser = getStoredUser();
     if (savedUser) setUser(savedUser);
@@ -53,13 +53,20 @@ export default function App() {
     removeAuthToken();
     removeStoredUser();
     setUser(null);
+    setCurrentVideoId('');
+    setCurrentVideoUrl('');
   };
 
+  // ── 1. Unauthenticated State: Show Professional Clean Auth Page ────────────
+  if (!user) {
+    return <AuthPage onAuthSuccess={(userData) => setUser(userData)} />;
+  }
+
+  // ── 2. Authenticated State: Show Main Dashboard ────────────────────────────
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         user={user}
-        onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
         onOpenSummary={() => setIsSummaryOpen(true)}
         currentVideoId={currentVideoId}
@@ -89,13 +96,13 @@ export default function App() {
             />
 
             {/* User Session History Videos */}
-            {user && userVideos.length > 0 && (
-              <div className="glass-panel" style={{ padding: '1rem 1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.9rem', color: '#cbd5e1' }}>
-                  <History size={16} color="#818cf8" />
-                  <span style={{ fontWeight: '600' }}>Your Recent Indexed Videos</span>
+            {userVideos.length > 0 && (
+              <div className="glass-panel" style={{ padding: '0.85rem 1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.6rem', fontSize: '0.8rem', color: '#a1a1aa' }}>
+                  <History size={14} color="#ffffff" />
+                  <span style={{ fontWeight: '600' }}>Recent Videos</span>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                   {userVideos.map((vid, idx) => (
                     <button
                       key={idx}
@@ -106,18 +113,19 @@ export default function App() {
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.4rem',
-                        background: vid === currentVideoId ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.05)',
+                        gap: '0.35rem',
+                        background: vid === currentVideoId ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
                         border: '1px solid',
-                        borderColor: vid === currentVideoId ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                        borderRadius: '8px',
-                        padding: '6px 12px',
-                        color: '#e2e8f0',
-                        fontSize: '0.8rem',
+                        borderColor: vid === currentVideoId ? 'rgba(255, 255, 255, 0.4)' : 'var(--border-subtle)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        color: vid === currentVideoId ? '#ffffff' : '#a1a1aa',
+                        fontSize: '0.75rem',
                         cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      <PlaySquare size={14} color="#818cf8" />
+                      <PlaySquare size={12} color="#ffffff" />
                       <span>{vid}</span>
                     </button>
                   ))}
@@ -137,18 +145,12 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modals */}
+      {/* Video Summary Modal */}
       <SummaryModal
         isOpen={isSummaryOpen}
         onClose={() => setIsSummaryOpen(false)}
         videoUrl={currentVideoUrl}
         videoId={currentVideoId}
-      />
-
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onAuthSuccess={(userData) => setUser(userData)}
       />
     </div>
   );

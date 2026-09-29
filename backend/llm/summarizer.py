@@ -1,13 +1,48 @@
 """
 backend/llm/summarizer.py
 =========================
-Multi-chunk transcript summarisation using Groq map-reduce pattern.
+Multi-chunk transcript summarisation using Groq map-reduce pattern with candidate model fallbacks.
 """
 
 import time
 from typing import List
 from config import GROQ_MODEL, SUMMARY_MAX_CHARS, SUMMARY_REQUEST_DELAY
 from llm.groq_client import get_groq_client
+
+
+def _call_groq_with_fallback(system_prompt: str, user_prompt: str, max_tokens: int = 600) -> str:
+    """Helper to execute chat completion with fallback models."""
+    client = get_groq_client()
+    candidate_models = [
+        GROQ_MODEL,
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3.8-27b",
+        "allam-2-7b",
+    ]
+    models_to_try = []
+    for m in candidate_models:
+        if m and m not in models_to_try:
+            models_to_try.append(m)
+
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as err:
+            last_error = err
+            print(f"[SUMMARIZER WARNING] Model '{model_name}' failed ({err}). Trying fallback...")
+
+    raise last_error
 
 
 def split_text(text: str, max_chars: int = SUMMARY_MAX_CHARS) -> List[str]:
@@ -47,22 +82,11 @@ TRANSCRIPT SECTION:
 
 SUMMARY:
 """
-
-    client = get_groq_client()
-    response = client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "You summarise transcript sections accurately and concisely.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
+    return _call_groq_with_fallback(
+        system_prompt="You summarise transcript sections accurately and concisely.",
+        user_prompt=prompt,
         max_tokens=500,
     )
-
-    return response.choices[0].message.content or ""
 
 
 def create_final_summary(summaries: List[str]) -> str:
@@ -96,22 +120,11 @@ SECTION SUMMARIES:
 
 FINAL SUMMARY:
 """
-
-    client = get_groq_client()
-    response = client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "Create a concise final summary from section summaries.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
+    return _call_groq_with_fallback(
+        system_prompt="Create a concise final summary from section summaries.",
+        user_prompt=prompt,
         max_tokens=800,
     )
-
-    return response.choices[0].message.content or ""
 
 
 def summarize_transcript(transcript: str) -> str:

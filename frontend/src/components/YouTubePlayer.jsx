@@ -17,21 +17,21 @@ export default function YouTubePlayer({ videoId, currentTimestamp }) {
       <div 
         className="glass-panel" 
         style={{ 
-          height: '380px', 
+          height: '360px', 
           display: 'flex', 
           flexDirection: 'column', 
           alignItems: 'center', 
           justifyContent: 'center',
-          color: '#64748b',
-          gap: '1rem',
+          color: '#52525b',
+          gap: '0.75rem',
           textAlign: 'center',
           padding: '2rem'
         }}
       >
-        <PlayCircle size={48} strokeWidth={1.5} color="#475569" />
+        <PlayCircle size={42} strokeWidth={1.5} color="#3f3f46" />
         <div>
-          <h3 style={{ fontSize: '1.1rem', color: '#94a3b8', marginBottom: '0.25rem' }}>No Video Loaded</h3>
-          <p style={{ fontSize: '0.85rem' }}>Enter a YouTube URL above to index and watch the video.</p>
+          <h3 style={{ fontSize: '1rem', color: '#a1a1aa', marginBottom: '0.2rem' }}>No Video Loaded</h3>
+          <p style={{ fontSize: '0.8rem', color: '#71717a' }}>Paste a YouTube link above to index.</p>
         </div>
       </div>
     );
@@ -64,18 +64,18 @@ export default function YouTubePlayer({ videoId, currentTimestamp }) {
       </div>
 
       <div style={{ 
-        padding: '0.75rem 1rem', 
-        background: 'rgba(15, 23, 42, 0.6)', 
+        padding: '0.65rem 0.85rem', 
+        background: 'rgba(12, 12, 14, 0.8)', 
         borderTop: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        fontSize: '0.8rem',
-        color: '#94a3b8'
+        fontSize: '0.75rem',
+        color: '#71717a'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Clock size={14} color="#818cf8" />
-          <span>Click any timestamp citation in the chat to jump the video directly!</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Clock size={13} color="#a1a1aa" />
+          <span>Click citations in chat to jump video timestamp</span>
         </div>
       </div>
     </div>

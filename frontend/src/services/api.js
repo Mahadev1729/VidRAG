@@ -24,11 +24,32 @@ const authHeaders = () => {
   };
 };
 
+// Safe JSON parser to prevent "Unexpected end of JSON input" errors
+async function handleResponse(res, fallbackErrMsg = 'Request failed') {
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    data = { detail: text || fallbackErrMsg };
+  }
+
+  if (!res.ok) {
+    const errorMsg = data.detail || (typeof data === 'string' ? data : fallbackErrMsg);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
 export const api = {
   // Health
   checkHealth: async () => {
-    const res = await fetch(`${API_BASE_URL}/health`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`);
+      return await handleResponse(res, 'Health check failed');
+    } catch (err) {
+      throw new Error('Backend server is not reachable at http://127.0.0.1:8000. Please ensure uvicorn is running.');
+    }
   },
 
   // Auth
@@ -38,11 +59,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Registration failed');
-    }
-    return res.json();
+    return await handleResponse(res, 'Registration failed');
   },
 
   login: async (identifier, password) => {
@@ -51,13 +68,25 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier, password }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Invalid credentials');
+    const data = await handleResponse(res, 'Invalid credentials');
+    if (data.access_token) {
+      setAuthToken(data.access_token);
+      setStoredUser(data.user);
     }
-    const data = await res.json();
-    setAuthToken(data.access_token);
-    setStoredUser(data.user);
+    return data;
+  },
+
+  googleLogin: async (credential) => {
+    const res = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+    const data = await handleResponse(res, 'Google authentication failed');
+    if (data.access_token) {
+      setAuthToken(data.access_token);
+      setStoredUser(data.user);
+    }
     return data;
   },
 
@@ -65,43 +94,48 @@ export const api = {
     const res = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: authHeaders(),
     });
-    if (!res.ok) throw new Error('Session expired');
-    return res.json();
+    return await handleResponse(res, 'Session expired');
   },
 
   // Ingestion
   processVideo: async (url, forceWhisper = false, language = 'en') => {
-    const res = await fetch(`${API_BASE_URL}/video/process`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
-        url,
-        force_whisper: forceWhisper,
-        preferred_language: language,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to process video');
+    try {
+      const res = await fetch(`${API_BASE_URL}/video/process`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          url,
+          force_whisper: forceWhisper,
+          preferred_language: language,
+        }),
+      });
+      return await handleResponse(res, 'Failed to process video');
+    } catch (err) {
+      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        throw new Error('Could not reach backend server. Please verify FastAPI backend (uvicorn) is running.');
+      }
+      throw err;
     }
-    return res.json();
   },
 
   // Chat / RAG
   askQuestion: async (videoId, question) => {
-    const res = await fetch(`${API_BASE_URL}/chat`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
-        video_id: videoId,
-        question,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Error getting answer');
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          video_id: videoId,
+          question,
+        }),
+      });
+      return await handleResponse(res, 'Error getting answer');
+    } catch (err) {
+      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        throw new Error('Backend connection lost. Please verify FastAPI server is running.');
+      }
+      throw err;
     }
-    return res.json();
   },
 
   // Summary
@@ -111,20 +145,21 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify({ url }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to generate summary');
-    }
-    return res.json();
+    return await handleResponse(res, 'Failed to generate summary');
   },
 
   // Chat History
   getHistory: async (videoId) => {
-    const res = await fetch(`${API_BASE_URL}/history/${videoId}`, {
-      headers: authHeaders(),
-    });
-    if (!res.ok) return { history: [] };
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/history/${videoId}`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return { history: [] };
+      return await handleResponse(res, 'Failed to load history');
+    } catch (err) {
+      console.warn('Could not fetch history:', err.message);
+      return { history: [] };
+    }
   },
 
   clearHistory: async (videoId) => {
@@ -132,36 +167,19 @@ export const api = {
       method: 'DELETE',
       headers: authHeaders(),
     });
-    return res.json();
+    return await handleResponse(res, 'Failed to clear history');
   },
 
   getUserVideos: async () => {
-    const res = await fetch(`${API_BASE_URL}/user/videos`, {
-      headers: authHeaders(),
-    });
-    if (!res.ok) return { videos: [] };
-    return res.json();
-  },
-
-  // Feedback
-  sendFeedback: async (videoId, question, answer, rating, comment = null) => {
-    const res = await fetch(`${API_BASE_URL}/feedback`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({
-        video_id: videoId,
-        question,
-        answer,
-        rating,
-        comment,
-      }),
-    });
-    return res.json();
-  },
-
-  getFeedbackStats: async (videoId) => {
-    const res = await fetch(`${API_BASE_URL}/feedback/stats/${videoId}`);
-    if (!res.ok) return { stats: { upvotes: 0, downvotes: 0 } };
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/user/videos`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) return { videos: [] };
+      return await handleResponse(res, 'Failed to get videos');
+    } catch (err) {
+      console.warn('Could not fetch user videos:', err.message);
+      return { videos: [] };
+    }
   },
 };

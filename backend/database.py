@@ -128,24 +128,6 @@ def init_tidb_schema() -> None:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 """
             )
-
-            # 5. Feedback Table
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS feedback (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    username VARCHAR(100) NOT NULL,
-                    video_id VARCHAR(64) NOT NULL,
-                    question TEXT NOT NULL,
-                    answer LONGTEXT NOT NULL,
-                    feedback_type VARCHAR(20) NOT NULL,
-                    rating INT DEFAULT NULL,
-                    comment TEXT DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_fb_user_video (username, video_id)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-                """
-            )
         print("[DATABASE] TiDB Cloud schema initialized successfully.")
     finally:
         conn.close()
@@ -234,75 +216,24 @@ def clear_chat_history(username: str, video_id: str) -> None:
 
 def get_user_videos(username: str) -> List[str]:
     """Get list of distinct video IDs the user has chatted about."""
-    conn = get_db_connection()
     try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT DISTINCT video_id
-                FROM chat_history
-                WHERE username = %s
-                ORDER BY id DESC
-                """,
-                (username,),
-            )
-            rows = cursor.fetchall()
-            return [row["video_id"] for row in rows]
-    finally:
-        conn.close()
-
-
-# ── Feedback in TiDB ─────────────────────────────────────────────────────────
-
-def save_feedback(
-    username: str,
-    video_id: str,
-    question: str,
-    answer: str,
-    feedback_type: str,
-    rating: Optional[int] = None,
-    comment: Optional[str] = None,
-) -> None:
-    """Store thumbs up / down or rating feedback in TiDB."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO feedback (username, video_id, question, answer, feedback_type, rating, comment)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """,
-                (username, video_id, question, answer, feedback_type, rating, comment),
-            )
-    finally:
-        conn.close()
-
-
-def get_feedback_examples(video_id: Optional[str] = None, limit: int = 3) -> List[Dict[str, str]]:
-    """Retrieve positive feedback examples for few-shot prompting."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            if video_id:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT question, answer
-                    FROM feedback
-                    WHERE feedback_type = 'positive' AND video_id = %s
-                    ORDER BY id DESC LIMIT %s
+                    SELECT video_id
+                    FROM chat_history
+                    WHERE username = %s
+                    GROUP BY video_id
+                    ORDER BY MAX(id) DESC
                     """,
-                    (video_id, limit),
+                    (username,),
                 )
-            else:
-                cursor.execute(
-                    """
-                    SELECT question, answer
-                    FROM feedback
-                    WHERE feedback_type = 'positive'
-                    ORDER BY id DESC LIMIT %s
-                    """,
-                    (limit,),
-                )
-            return cursor.fetchall()
-    finally:
-        conn.close()
+                rows = cursor.fetchall()
+                return [row["video_id"] for row in rows]
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[DB WARNING] get_user_videos failed: {e}")
+        return []

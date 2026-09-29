@@ -102,7 +102,60 @@ def authenticate_user(identifier: str, password: str) -> Optional[Dict[str, Any]
     return user
 
 
-async def get_current_user(
+def verify_google_id_token(id_token_str: str) -> Optional[Dict[str, Any]]:
+    """Verify Google ID token via Google TokenInfo endpoint."""
+    import urllib.request
+    import json
+    try:
+        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token_str}"
+        req = urllib.request.Request(url, headers={"User-Agent": "VidRAG-Auth"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode("utf-8"))
+                if "email" in data:
+                    return data
+    except Exception as e:
+        print(f"[GOOGLE AUTH] Token verification error: {e}")
+    return None
+
+
+def authenticate_or_create_google_user(credential: str) -> Optional[Dict[str, Any]]:
+    """
+    Verify Google OAuth credential and find or auto-create the user in TiDB.
+    """
+    payload = verify_google_id_token(credential)
+    if not payload or not payload.get("email"):
+        return None
+
+    email = payload["email"].strip().lower()
+    full_name = payload.get("name", "").strip() or email.split("@")[0]
+    base_username = re.sub(r"[^\w\-]", "", full_name)[:25] or email.split("@")[0]
+    avatar_url = payload.get("picture", "")
+
+    user = get_user_by_username_or_email(email)
+    if not user:
+        username = base_username
+        if len(username) < 3:
+            username = f"user_{username}"
+
+        # If username exists, append random suffix
+        existing_u = get_user_by_username_or_email(username)
+        if existing_u:
+            username = f"{username}_{secrets.token_hex(2)}"
+
+        random_pwd = secrets.token_urlsafe(32)
+        pwd_hash = hash_password(random_pwd)
+        create_user(username, email, pwd_hash)
+        user = get_user_by_username_or_email(email)
+
+    if user:
+        user["display_name"] = full_name
+        user["avatar"] = avatar_url
+
+    return user
+
+
+def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Dict[str, Any]:
     """FastAPI Dependency to get authenticated user from Bearer JWT."""

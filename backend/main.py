@@ -8,15 +8,15 @@ Integrates TiDB Cloud Serverless (Vector + Relational), Groq LLM, Whisper, and J
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 
 # Ensure backend root is always in sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from config import (
@@ -37,6 +37,7 @@ from ingestion.youtube_loader import (
     TranscriptError,
 )
 from ingestion.chunker import create_documents_from_segments
+from retrieval.embeddings import get_embedding_model
 from retrieval.vector_store import (
     store_documents_in_tidb,
     get_vector_store_for_video,
@@ -44,10 +45,10 @@ from retrieval.vector_store import (
 )
 from llm.rag import answer_question
 from llm.summarizer import summarize_transcript
-from llm.feedback_store import record_feedback, get_feedback_stats
 from utils.auth import (
     register_user,
     authenticate_user,
+    authenticate_or_create_google_user,
     create_access_token,
     get_current_user,
 )
@@ -69,14 +70,27 @@ app.add_middleware(
 )
 
 
+def _warmup_resources():
+    """Pre-warm database connection and embedding model in background thread."""
+    try:
+        print("[STARTUP] Pre-warming embedding model in memory...")
+        get_embedding_model()
+        print("[STARTUP] Embedding model pre-warmed successfully!")
+    except Exception as e:
+        print(f"[STARTUP WARNING] Embedding pre-warm notice: {e}")
+
+
 @app.on_event("startup")
 def startup_event():
-    """Initialize TiDB schema on startup if configured."""
+    """Initialize TiDB schema and pre-warm models on startup."""
     try:
         init_tidb_schema()
         print("[STARTUP] Connected to TiDB Cloud & Initialized Schema.")
     except Exception as e:
         print(f"[STARTUP WARNING] TiDB Cloud status: {e}")
+
+    # Launch model warmup in a daemon thread so server starts immediately without cold-start blocking
+    threading.Thread(target=_warmup_resources, daemon=True).start()
 
 
 # ── Pydantic Request/Response Models ─────────────────────────────────────────
@@ -92,6 +106,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+
 class ProcessVideoRequest(BaseModel):
     url: str
     force_whisper: bool = False
@@ -101,14 +119,6 @@ class ProcessVideoRequest(BaseModel):
 class ChatRequest(BaseModel):
     video_id: str
     question: str
-
-
-class FeedbackRequest(BaseModel):
-    video_id: str
-    question: str
-    answer: str
-    rating: int  # 1 for positive, -1 for negative
-    comment: Optional[str] = None
 
 
 # ── Health Check ─────────────────────────────────────────────────────────────
@@ -156,6 +166,28 @@ def login(req: LoginRequest):
     }
 
 
+@app.post("/api/auth/google")
+def google_auth(req: GoogleAuthRequest):
+    """Authenticate or automatically register user using verified Google ID token."""
+    user = authenticate_or_create_google_user(req.credential)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google authentication failed or invalid token.",
+        )
+    token = create_access_token(data={"sub": user["username"]})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "username": user.get("display_name") or user["username"],
+            "email": user["email"],
+            "avatar": user.get("avatar"),
+        },
+    }
+
+
 @app.get("/api/auth/me")
 def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
     return {"user": current_user}
@@ -164,7 +196,7 @@ def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
 # ── Video Processing & Ingestion Endpoint ────────────────────────────────────
 
 @app.post("/api/video/process")
-async def process_video(
+def process_video(
     req: ProcessVideoRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
 ):
@@ -227,12 +259,12 @@ async def process_video(
 # ── Chat & RAG Endpoints ─────────────────────────────────────────────────────
 
 @app.post("/api/chat")
-async def chat_endpoint(
+def chat_endpoint(
     req: ChatRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
 ):
     """
-    Answer question using RAG over TiDB Vector Store.
+    Answer question using RAG over TiDB Vector Store (Threadpooled).
     """
     video_id = req.video_id
     vector_store = get_vector_store_for_video(video_id)
@@ -277,7 +309,7 @@ async def chat_endpoint(
 # ── Summarization Endpoint ───────────────────────────────────────────────────
 
 @app.post("/api/summary")
-async def get_video_summary(
+def get_video_summary(
     req: ProcessVideoRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
 ):
@@ -339,30 +371,41 @@ def clear_history(
 def get_my_videos(
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
-    videos = get_user_videos(username=current_user["username"])
-    return {"videos": videos}
+    try:
+        videos = get_user_videos(username=current_user["username"])
+        return {"videos": videos}
+    except Exception as e:
+        print(f"[API ERROR] /api/user/videos failed: {e}")
+        return {"videos": []}
 
 
-# ── Feedback Endpoints ───────────────────────────────────────────────────────
+# ── Production SPA Static Mounting (Railway / Docker Deployment) ──────────────
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-@app.post("/api/feedback")
-def submit_feedback(
-    req: FeedbackRequest,
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
-):
-    username = current_user["username"] if current_user else "anonymous"
-    success = record_feedback(
-        video_id=req.video_id,
-        question=req.question,
-        answer=req.answer,
-        rating=req.rating,
-        username=username,
-        comment=req.comment,
-    )
-    return {"success": success}
+STATIC_DIRS = [
+    Path(__file__).resolve().parent / "static",
+    Path(__file__).resolve().parent.parent / "frontend" / "dist",
+]
+
+for s_dir in STATIC_DIRS:
+    if s_dir.exists() and (s_dir / "index.html").exists():
+        if (s_dir / "assets").exists():
+            app.mount("/assets", StaticFiles(directory=str(s_dir / "assets")), name="assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str):
+            if full_path.startswith("api/"):
+                raise HTTPException(status_code=404, detail="API route not found")
+            target = s_dir / full_path
+            if target.is_file():
+                return FileResponse(target)
+            return FileResponse(s_dir / "index.html")
+        print(f"[DEPLOYMENT] Mounted SPA static assets from {s_dir}")
+        break
 
 
-@app.get("/api/feedback/stats/{video_id}")
-def feedback_stats(video_id: str):
-    stats = get_feedback_stats(video_id=video_id)
-    return {"stats": stats}
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

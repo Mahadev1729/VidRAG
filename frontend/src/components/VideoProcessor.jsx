@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Loader2, CheckCircle2, AlertCircle, Cpu, Globe } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, AlertCircle, Sparkles, Youtube } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function VideoProcessor({ onVideoProcessed, currentVideoId, isProcessing, setIsProcessing }) {
   const [url, setUrl] = useState('');
-  const [forceWhisper, setForceWhisper] = useState(false);
-  const [language, setLanguage] = useState('en');
   const [statusMessage, setStatusMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
@@ -14,12 +12,13 @@ export default function VideoProcessor({ onVideoProcessed, currentVideoId, isPro
     if (!url.trim()) return;
 
     setIsProcessing(true);
-    setStatusMessage('Fetching transcript & generating TiDB Cloud vector embeddings...');
+    setStatusMessage('Indexing video with TiDB Vector...');
     setErrorMessage(null);
 
     try {
-      const data = await api.processVideo(url, forceWhisper, language);
-      setStatusMessage(data.message || 'Video successfully processed!');
+      // Backend automatically checks YouTube captions and auto-falls back to Whisper
+      const data = await api.processVideo(url, false, 'en');
+      setStatusMessage(data.message || 'Video indexed successfully!');
       onVideoProcessed(data.video_id, url);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to process video.');
@@ -30,25 +29,31 @@ export default function VideoProcessor({ onVideoProcessed, currentVideoId, isPro
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+    <div className="glass-panel" style={{ padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        
-        {/* Main URL Bar */}
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <div style={{ 
-            position: 'relative', 
-            flex: 1, 
-            display: 'flex', 
+
+        {/* Responsive Search & Ingest Bar */}
+        <div style={{
+          display: 'flex',
+          gap: '0.6rem',
+          alignItems: 'center',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{
+            position: 'relative',
+            flex: '1 1 260px',
+            display: 'flex',
             alignItems: 'center',
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'rgba(15, 23, 42, 0.7)',
             borderRadius: '10px',
             border: '1px solid var(--border-subtle)',
-            padding: '0 12px'
+            padding: '0 12px',
+            transition: 'border-color 0.2s, box-shadow 0.2s'
           }}>
-            <Search size={18} color="#64748b" />
+            <Youtube size={18} color="#ef4444" style={{ flexShrink: 0, marginRight: '6px' }} />
             <input
               type="text"
-              placeholder="Paste YouTube Video URL (e.g. https://www.youtube.com/watch?v=...)"
+              placeholder="Paste YouTube link (e.g. https://youtu.be/...)"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={isProcessing}
@@ -57,8 +62,8 @@ export default function VideoProcessor({ onVideoProcessed, currentVideoId, isPro
                 background: 'transparent',
                 border: 'none',
                 color: '#f8fafc',
-                padding: '12px 10px',
-                fontSize: '0.95rem',
+                padding: '11px 4px',
+                fontSize: '0.92rem',
                 outline: 'none',
               }}
             />
@@ -68,104 +73,56 @@ export default function VideoProcessor({ onVideoProcessed, currentVideoId, isPro
             type="submit"
             disabled={isProcessing || !url.trim()}
             className="gradient-btn"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem',
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
               whiteSpace: 'nowrap',
-              padding: '12px 24px'
+              padding: '11px 20px',
+              flex: '0 0 auto',
+              minWidth: '120px',
+              fontSize: '0.9rem',
+              cursor: isProcessing || !url.trim() ? 'not-allowed' : 'pointer'
             }}
           >
             {isProcessing ? (
               <>
-                <Loader2 size={18} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-                <span>Indexing...</span>
+                <Loader2 size={16} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Processing...</span>
               </>
             ) : (
-              <span>Index Video</span>
+              <>
+                <Sparkles size={15} />
+                <span>Process Video</span>
+              </>
             )}
           </button>
         </div>
 
-        {/* Options Row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={forceWhisper}
-                onChange={(e) => setForceWhisper(e.target.checked)}
-                disabled={isProcessing}
-                style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
-              />
-              <Cpu size={14} />
-              <span>Force Whisper Audio Transcription</span>
-            </label>
+        {/* Live Status Indicators */}
+        {(statusMessage || errorMessage || currentVideoId) && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.8rem' }}>
+            {statusMessage && !errorMessage && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#818cf8' }}>
+                <CheckCircle2 size={14} />
+                <span>{statusMessage}</span>
+              </div>
+            )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Globe size={14} />
-              <span>Language:</span>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                disabled={isProcessing}
-                style={{
-                  background: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid var(--border-subtle)',
-                  color: '#e2e8f0',
-                  borderRadius: '6px',
-                  padding: '2px 6px',
-                  fontSize: '0.8rem',
-                  outline: 'none',
-                }}
-              >
-                <option value="en">English (en)</option>
-                <option value="hi">Hindi (hi)</option>
-                <option value="es">Spanish (es)</option>
-                <option value="fr">French (fr)</option>
-                <option value="de">German (de)</option>
-              </select>
-            </div>
-          </div>
+            {errorMessage && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#f87171' }}>
+                <AlertCircle size={14} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
-          {currentVideoId && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#34d399' }}>
-              <CheckCircle2 size={14} />
-              <span>Active Video ID: <strong>{currentVideoId}</strong></span>
-            </div>
-          )}
-        </div>
-
-        {/* Status Messages */}
-        {statusMessage && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            color: '#818cf8', 
-            background: 'rgba(99, 102, 241, 0.1)',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '0.85rem'
-          }}>
-            <CheckCircle2 size={16} />
-            <span>{statusMessage}</span>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            color: '#f87171', 
-            background: 'rgba(239, 68, 68, 0.1)',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '0.85rem'
-          }}>
-            <AlertCircle size={16} />
-            <span>{errorMessage}</span>
+            {currentVideoId && !statusMessage && !errorMessage && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#34d399', marginLeft: 'auto' }}>
+                <CheckCircle2 size={14} />
+                <span>Active: <strong>{currentVideoId}</strong></span>
+              </div>
+            )}
           </div>
         )}
 

@@ -56,14 +56,15 @@ else:
     TIDB_SSL_CA = ""
 
 
-# ── JWT Authentication ──────────────────────────────────────────────────────
+# ── JWT Authentication & Google OAuth ─────────────────────────────────────────
 JWT_SECRET: str = _get_config("JWT_SECRET", "youtube_rag_super_secret_jwt_key_2026")
 JWT_ALGORITHM: str = _get_config("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES: int = int(_get_config("JWT_EXPIRE_MINUTES", str(60 * 24 * 7)))
+GOOGLE_CLIENT_ID: str = _get_config("GOOGLE_CLIENT_ID", "")
 
 # ── Groq API & LLM ──────────────────────────────────────────────────────────
 GROQ_API_KEY: str = _get_config("GROQ_API_KEY", "")
-GROQ_MODEL: str = _get_config("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL: str = _get_config("GROQ_MODEL", "openai/gpt-oss-120b")
 
 # Sentence Transformer embeddings
 EMBEDDING_MODEL: str = _get_config(
@@ -81,7 +82,6 @@ TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
 AUDIO_DIR = DATA_DIR / "audio"
 INDEXES_DIR = DATA_DIR / "indexes"
 SUMMARIES_DIR = DATA_DIR / "summaries"
-FEEDBACK_DB_PATH = DATA_DIR / "feedback.db"
 
 # ── Cookie Configuration for yt-dlp ─────────────────────────────────────────
 COOKIES_FROM_BROWSER: str = _get_config("COOKIES_FROM_BROWSER", "").strip().lower()

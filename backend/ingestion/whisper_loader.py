@@ -53,10 +53,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
-import streamlit as st
 import yt_dlp
 
 from config import (
+    BASE_DIR,
+    PROJECT_ROOT,
+    DATA_DIR,
     AUDIO_DIR,
     COOKIES_FILE,
     COOKIES_FROM_BROWSER,
@@ -78,10 +80,6 @@ class WhisperTranscriptionError(Exception):
 def ensure_ffmpeg_available() -> None:
     """
     Verify FFmpeg is installed and available on PATH.
-
-    WHY: yt-dlp needs FFmpeg to convert downloaded audio to MP3.
-    Whisper also requires FFmpeg to decode audio formats.
-    Without it the entire fallback fails — check early and raise clearly.
     """
     if shutil.which("ffmpeg") is None:
         raise WhisperTranscriptionError(
@@ -91,29 +89,22 @@ def ensure_ffmpeg_available() -> None:
         )
 
 
-# ── Whisper Model — cached across all Streamlit sessions ──────────────────────
+# ── Whisper Model — In-Memory Cached Singleton ────────────────────────────────
 
-@st.cache_resource
+_cached_whisper_model = None
+
+
 def get_whisper_model():
     """
-    Load the Whisper model once and cache it for the process lifetime.
-
-    st.cache_resource vs st.session_state
-    --------------------------------------
-    st.cache_resource  → shared across ALL users/sessions.
-                         Perfect for ML models: load once, reuse forever.
-    st.session_state   → per-browser-session only.
-                         Perfect for user-specific data: current video,
-                         chat history, vector store.
-
-    The first call to this function takes 10-30 seconds (model download
-    + load).  Every subsequent call returns the cached model instantly.
+    Load the Whisper model once and cache it in memory for fast reuse.
     """
-    import whisper
-    print(f"[WHISPER] Loading Whisper model '{WHISPER_MODEL}' ...")
-    model = whisper.load_model(WHISPER_MODEL)
-    print("[WHISPER] Model loaded and cached.")
-    return model
+    global _cached_whisper_model
+    if _cached_whisper_model is None:
+        import whisper
+        print(f"[WHISPER] Loading local Whisper model '{WHISPER_MODEL}' ...")
+        _cached_whisper_model = whisper.load_model(WHISPER_MODEL)
+        print("[WHISPER] Model loaded and cached in memory.")
+    return _cached_whisper_model
 
 
 # ── Audio Download (yt-dlp) ───────────────────────────────────────────────────
