@@ -1,29 +1,73 @@
-﻿# Secrets
+# ==========================================
+# Git Ignore for VidRAG (FastAPI + React + TiDB)
+# ==========================================
+
+# Node & Frontend Dependencies and Builds
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+.next/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Secrets & Environment Files
 .env
+.env.local
+.env.*.local
+*.env
 .streamlit/secrets.toml
 cookies.txt
 *.cookies.txt
 
-# Python
+# Python Virtual Environments
 venv/
+**/venv/
 .venv/
+**/.venv/
+env/
+**/env/
+ENV/
+
+# Python Cache & Bytecode
 __pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
 *.pyc
 *.pyo
 *.pyd
 .Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
 
+# Local Databases & Generated Data
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+users.db*
+data/audio/
+data/transcripts/
+data/indexes/
+data/summaries/
+backend/data/audio/
+backend/data/transcripts/
+backend/data/indexes/
+backend/data/summaries/
+backend/data/*.db
 
-
-
-data/audio
+# IDE & Editor Configs
 .vscode/
 .idea/
 *.swp
-
-
+*.swo
 .DS_Store
 Thumbs.db
-# Database
-users.db*
-data/
