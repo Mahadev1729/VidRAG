@@ -215,9 +215,24 @@ def init_tidb_schema() -> None:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 """
             )
+
+            # 5. User Videos Association Table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_videos (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(100) NOT NULL,
+                    video_id VARCHAR(64) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uq_user_video (username, video_id),
+                    INDEX idx_user (username)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                """
+            )
         print("[DATABASE] TiDB Cloud schema initialized successfully.")
     finally:
         conn.close()
+
 
 
 # ── User Management ──────────────────────────────────────────────────────────
@@ -301,69 +316,87 @@ def clear_chat_history(username: str, video_id: str) -> None:
         conn.close()
 
 
-def get_user_videos(username: str) -> List[Dict[str, Any]]:
-    """Get rich list of distinct videos the user has indexed or chatted about."""
+def link_user_video(username: str, video_id: str) -> None:
+    """Link a video to a user's private library cleanly in the user_videos table."""
+    if not username or username == "anonymous" or not video_id:
+        return
     try:
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
-                # 1. Fetch user's chatted videos
+                cursor.execute(
+                    """
+                    INSERT INTO user_videos (username, video_id)
+                    VALUES (%s, %s)
+                    ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP
+                    """,
+                    (username.strip(), video_id.strip()),
+                )
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[DB WARNING] link_user_video failed: {e}")
+
+
+def get_user_videos(username: str) -> List[Dict[str, Any]]:
+    """
+    Mode B: Strictly Private Library.
+    Returns only the videos that this specific user has personally added or chatted about.
+    """
+    if not username or username == "anonymous":
+        return []
+
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                # Query user_videos first, left join with chat_history count
                 cursor.execute(
                     """
                     SELECT 
-                        c.video_id, 
-                        MAX(c.created_at) AS last_activity,
-                        COUNT(c.id) AS message_count
-                    FROM chat_history c
-                    WHERE c.username = %s
-                    GROUP BY c.video_id
-                    ORDER BY last_activity DESC
+                        u.video_id, 
+                        u.created_at AS last_activity,
+                        (SELECT COUNT(*) FROM chat_history c WHERE c.username = u.username AND c.video_id = u.video_id) AS message_count
+                    FROM user_videos u
+                    WHERE u.username = %s
+                    ORDER BY u.created_at DESC
                     """,
-                    (username,),
+                    (username.strip(),),
                 )
-                chat_rows = cursor.fetchall()
+                rows = cursor.fetchall()
 
-                # 2. Fetch all indexed videos in TiDB
-                cursor.execute(
-                    """
-                    SELECT video_id, MIN(created_at) as indexed_at 
-                    FROM transcript_chunks 
-                    GROUP BY video_id 
-                    ORDER BY indexed_at DESC
-                    LIMIT 30
-                    """
-                )
-                chunk_rows = cursor.fetchall()
+                # If no user_videos rows exist yet, fallback to distinct chat_history
+                if not rows:
+                    cursor.execute(
+                        """
+                        SELECT 
+                            c.video_id, 
+                            MAX(c.created_at) AS last_activity,
+                            COUNT(c.id) AS message_count
+                        FROM chat_history c
+                        WHERE c.username = %s
+                        GROUP BY c.video_id
+                        ORDER BY last_activity DESC
+                        """,
+                        (username.strip(),),
+                    )
+                    rows = cursor.fetchall()
 
-                seen = set()
-                results = []
-
-                for r in chat_rows:
-                    vid = r.get("video_id")
-                    if vid and vid not in seen:
-                        seen.add(vid)
-                        results.append({
-                            "video_id": vid,
-                            "thumbnail": f"https://img.youtube.com/vi/{vid}/mqdefault.jpg",
-                            "message_count": r.get("message_count", 0),
-                            "last_active": str(r.get("last_activity", "")),
-                        })
-
-                for r in chunk_rows:
-                    vid = r.get("video_id")
-                    if vid and vid not in seen:
-                        seen.add(vid)
-                        results.append({
-                            "video_id": vid,
-                            "thumbnail": f"https://img.youtube.com/vi/{vid}/mqdefault.jpg",
-                            "message_count": 0,
-                            "last_active": str(r.get("indexed_at", "")),
-                        })
-
-                return results
+                return [
+                    {
+                        "video_id": r["video_id"],
+                        "thumbnail": f"https://img.youtube.com/vi/{r['video_id']}/mqdefault.jpg",
+                        "message_count": r.get("message_count", 0),
+                        "last_active": str(r.get("last_activity", "")),
+                    }
+                    for r in rows
+                    if r.get("video_id")
+                ]
         finally:
             conn.close()
     except Exception as e:
         print(f"[DB WARNING] get_user_videos failed: {e}")
         return []
+
+
 

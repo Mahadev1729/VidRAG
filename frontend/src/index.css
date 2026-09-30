@@ -149,9 +149,51 @@ input {
 
 /* Flex & Grid utilities */
 .container-app {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .container-app {
+    padding: 0.85rem;
+  }
+}
+
+/* Perfect Ratio Workspace Grid: Compact Player (35%) + Spacious Chat Interface (65%) */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1280px) {
+  .workspace-grid {
+    grid-template-columns: 400px 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+.chat-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 230px);
+  min-height: 580px;
+  max-height: 820px;
+  overflow: hidden;
+}
+
+@media (max-width: 980px) {
+  .chat-panel-container {
+    height: 580px;
+  }
 }
 
 /* Markdown typography in chat */

@@ -29,6 +29,7 @@ from database import (
     get_chat_history,
     clear_chat_history,
     get_user_videos,
+    link_user_video,
 )
 from ingestion.youtube_loader import (
     extract_video_id,
@@ -213,13 +214,19 @@ def process_video(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    username = current_user["username"] if current_user else "anonymous"
+
+    # Link to user's private library cleanly
+    if username != "anonymous":
+        link_user_video(username=username, video_id=video_id)
+
     # Check if existing vector index exists in TiDB
     existing_store = get_vector_store_for_video(video_id)
     if existing_store and not req.force_whisper:
         return {
             "video_id": video_id,
             "status": "already_indexed",
-            "message": "Video is already indexed in TiDB Cloud.",
+            "message": "Video is ready for analysis.",
             "source": "tidb_cache",
         }
 
@@ -253,8 +260,10 @@ def process_video(
         "status": "indexed_successfully",
         "chunks_count": len(chunks),
         "source": source_used,
-        "message": f"Successfully indexed {len(chunks)} chunks into TiDB Cloud.",
+        "message": f"Successfully processed {len(chunks)} sections.",
     }
+
+
 
 
 # ── Chat & RAG Endpoints ─────────────────────────────────────────────────────

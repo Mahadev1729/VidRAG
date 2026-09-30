@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import VideoProcessor from './components/VideoProcessor';
 import YouTubePlayer from './components/YouTubePlayer';
 import ChatInterface from './components/ChatInterface';
-import AddVideoModal from './components/AddVideoModal';
 import VideoLibrary from './components/VideoLibrary';
 import AuthPage from './components/AuthPage';
-import { getStoredUser, removeAuthToken, removeStoredUser, api } from './services/api';
+import { api, getStoredUser, removeAuthToken, removeStoredUser } from './services/api';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [currentVideoId, setCurrentVideoId] = useState('');
-  const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [userVideos, setUserVideos] = useState([]);
 
   // Auto-login from stored session
@@ -22,40 +19,30 @@ export default function App() {
     if (savedUser) setUser(savedUser);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      loadUserVideos();
+  // Fetch private user videos whenever user state changes
+  const fetchUserVideos = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await api.getUserVideos();
+      if (data && Array.isArray(data.videos)) {
+        setUserVideos(data.videos);
+        // If currentVideoId is not set, set it to the most recent video
+        if (!currentVideoId && data.videos.length > 0) {
+          setCurrentVideoId(data.videos[0].video_id);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch user videos:', err);
     }
   }, [user, currentVideoId]);
 
-  const loadUserVideos = async () => {
-    try {
-      const data = await api.getUserVideos();
-      if (data && data.videos) {
-        setUserVideos(data.videos);
-        // If no video is currently selected, select the first recent video
-        if (!currentVideoId && data.videos.length > 0) {
-          const firstVid = typeof data.videos[0] === 'string' ? data.videos[0] : data.videos[0].video_id;
-          if (firstVid) {
-            setCurrentVideoId(firstVid);
-            setCurrentVideoUrl(`https://www.youtube.com/watch?v=${firstVid}`);
-          }
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  useEffect(() => {
+    fetchUserVideos();
+  }, [fetchUserVideos]);
 
-  const handleVideoProcessed = (videoId, url) => {
+  const handleVideoProcessed = (videoId) => {
     setCurrentVideoId(videoId);
-    setCurrentVideoUrl(url || `https://www.youtube.com/watch?v=${videoId}`);
-    loadUserVideos();
-  };
-
-  const handleSelectVideo = (videoId) => {
-    setCurrentVideoId(videoId);
-    setCurrentVideoUrl(`https://www.youtube.com/watch?v=${videoId}`);
+    fetchUserVideos();
   };
 
   const handleLogout = () => {
@@ -63,7 +50,7 @@ export default function App() {
     removeStoredUser();
     setUser(null);
     setCurrentVideoId('');
-    setCurrentVideoUrl('');
+    setUserVideos([]);
   };
 
   // ── 1. Unauthenticated State: Show Clean Auth Page ─────────────────────────
@@ -71,18 +58,17 @@ export default function App() {
     return <AuthPage onAuthSuccess={(userData) => setUser(userData)} />;
   }
 
-  // ── 2. Authenticated State: Show Main Dashboard ────────────────────────────
+  // ── 2. Authenticated State: Show Clean Dashboard ───────────────────────────
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         user={user}
         onLogout={handleLogout}
-        onOpenAddVideo={() => setIsAddModalOpen(true)}
         currentVideoId={currentVideoId}
       />
 
       <main className="container-app" style={{ flex: 1, paddingBottom: '2rem' }}>
-        {/* Top Video URL Search & Ingestion Bar */}
+        {/* Top Video URL Ingestion Bar */}
         <VideoProcessor
           onVideoProcessed={handleVideoProcessed}
           currentVideoId={currentVideoId}
@@ -90,30 +76,26 @@ export default function App() {
           setIsProcessing={setIsProcessing}
         />
 
-        {/* Video Library / Switcher Strip */}
-        <VideoLibrary
-          videos={userVideos}
-          currentVideoId={currentVideoId}
-          onSelectVideo={handleSelectVideo}
-          onOpenAddModal={() => setIsAddModalOpen(true)}
-        />
+        {/* Private User Video Library (Only visible for the logged-in user's own videos) */}
+        {userVideos.length > 0 && (
+          <VideoLibrary
+            videos={userVideos}
+            currentVideoId={currentVideoId}
+            onSelectVideo={(vidId) => setCurrentVideoId(vidId)}
+          />
+        )}
 
-        {/* Main 2-Column Responsive Layout */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: '1.5rem',
-          alignItems: 'start',
-        }}>
-          {/* Left Column: YouTube Player */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Main 2-Column Responsive Layout: Compact Player + Spacious Chat */}
+        <div className="workspace-grid">
+          {/* Left Column: YouTube Player (Compact, perfect 16:9 ratio) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <YouTubePlayer
               videoId={currentVideoId}
             />
           </div>
 
-          {/* Right Column: Interactive AI Chat */}
-          <div>
+          {/* Right Column: AI Chat Interface (Generous expanded space) */}
+          <div style={{ minWidth: 0 }}>
             <ChatInterface
               videoId={currentVideoId}
               isProcessing={isProcessing}
@@ -121,16 +103,11 @@ export default function App() {
           </div>
         </div>
       </main>
-
-      {/* Add New Video Modal */}
-      <AddVideoModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onVideoAdded={handleVideoProcessed}
-      />
     </div>
   );
 }
+
+
 
 
 

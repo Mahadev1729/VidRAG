@@ -1,7 +1,7 @@
 import React from 'react';
-import { Sparkles, Database, Youtube, User, LogOut, Plus } from 'lucide-react';
+import { Youtube, User, LogOut } from 'lucide-react';
 
-export default function Navbar({ user, onLogout, onOpenAddVideo, currentVideoId }) {
+export default function Navbar({ user, onLogout, currentVideoId }) {
   return (
     <header className="glass-panel" style={{ borderRadius: '0 0 14px 14px', borderTop: 'none', padding: '0.85rem 1.5rem', marginBottom: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -26,60 +26,34 @@ export default function Navbar({ user, onLogout, onOpenAddVideo, currentVideoId 
           </div>
         </div>
 
-        {/* Tech Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {/* Workspace Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.35rem', 
-            background: 'rgba(255, 255, 255, 0.05)', 
-            border: '1px solid rgba(255, 255, 255, 0.12)',
+            gap: '0.45rem', 
+            background: 'rgba(255, 255, 255, 0.04)', 
+            border: '1px solid rgba(255, 255, 255, 0.08)',
             borderRadius: '20px',
-            padding: '4px 10px',
+            padding: '5px 12px',
             fontSize: '0.75rem',
-            color: '#e4e4e7'
+            color: '#d4d4d8'
           }}>
-            <Database size={13} color="#a1a1aa" />
-            <span>TiDB Vector</span>
-          </div>
-
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.35rem', 
-            background: 'rgba(255, 255, 255, 0.05)', 
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '20px',
-            padding: '4px 10px',
-            fontSize: '0.75rem',
-            color: '#e4e4e7'
-          }}>
-            <Sparkles size={13} color="#a1a1aa" />
-            <span>Groq LLaMA</span>
+            <span style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: '#10b981',
+              boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
+              display: 'inline-block'
+            }} />
+            <span style={{ fontWeight: '500' }}>AI Assistant Online</span>
           </div>
         </div>
 
-        {/* User / Action Buttons */}
+        {/* User Profile / Logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          {onOpenAddVideo && (
-            <button
-              onClick={onOpenAddVideo}
-              className="gradient-btn"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
-              <Plus size={14} />
-              <span>Add Video</span>
-            </button>
-          )}
+
 
 
 

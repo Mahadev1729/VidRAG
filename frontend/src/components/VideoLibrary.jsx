@@ -1,64 +1,38 @@
 import React from 'react';
-import { PlaySquare, Plus, CheckCircle, MessageSquare } from 'lucide-react';
+import { PlaySquare, CheckCircle, MessageSquare } from 'lucide-react';
 
-export default function VideoLibrary({ videos, currentVideoId, onSelectVideo, onOpenAddModal }) {
+export default function VideoLibrary({ videos, currentVideoId, onSelectVideo }) {
   if (!videos || videos.length === 0) {
     return null;
   }
 
   return (
     <div className="glass-panel" style={{
-      padding: '0.85rem 1rem',
+      padding: '0.75rem 1rem',
       borderRadius: '12px',
-      marginBottom: '1rem',
+      marginBottom: '1.25rem',
     }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '0.75rem',
+        marginBottom: '0.65rem',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <PlaySquare size={16} color="#ffffff" />
-          <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#ffffff' }}>
-            Video Library ({videos.length})
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <PlaySquare size={15} color="#ffffff" />
+          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#ffffff', letterSpacing: '0.2px' }}>
+            My Videos ({videos.length})
           </span>
         </div>
-
-        <button
-          onClick={onOpenAddModal}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.25)',
-            color: '#ffffff',
-            borderRadius: '6px',
-            padding: '4px 10px',
-            fontSize: '0.75rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = '#ffffff';
-            e.target.style.color = '#000000';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-            e.target.style.color = '#ffffff';
-          }}
-        >
-          <Plus size={13} />
-          <span>Add New Video</span>
-        </button>
+        <span style={{ fontSize: '0.72rem', color: '#71717a' }}>
+          Click to switch video & chat
+        </span>
       </div>
 
-      {/* Horizontal Scrollable Video Cards */}
+      {/* Horizontal Scrollable Private Video Cards */}
       <div style={{
         display: 'flex',
-        gap: '0.75rem',
+        gap: '0.65rem',
         overflowX: 'auto',
         paddingBottom: '0.35rem',
         scrollbarWidth: 'thin',
@@ -73,19 +47,19 @@ export default function VideoLibrary({ videos, currentVideoId, onSelectVideo, on
               key={idx}
               onClick={() => onSelectVideo(vidId)}
               style={{
-                flex: '0 0 160px',
-                background: isActive ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                border: isActive ? '1.5px solid rgba(255, 255, 255, 0.6)' : '1px solid var(--border-subtle)',
-                borderRadius: '10px',
+                flex: '0 0 145px',
+                background: isActive ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                border: isActive ? '1.5px solid #ffffff' : '1px solid var(--border-subtle)',
+                borderRadius: '8px',
                 overflow: 'hidden',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 position: 'relative',
-                boxShadow: isActive ? '0 0 15px rgba(255, 255, 255, 0.15)' : 'none',
+                boxShadow: isActive ? '0 0 12px rgba(255, 255, 255, 0.2)' : 'none',
               }}
               onMouseEnter={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.35)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }
               }}
@@ -97,7 +71,7 @@ export default function VideoLibrary({ videos, currentVideoId, onSelectVideo, on
               }}
             >
               {/* Thumbnail */}
-              <div style={{ height: '90px', width: '100%', position: 'relative', background: '#000000' }}>
+              <div style={{ height: '78px', width: '100%', position: 'relative', background: '#000000' }}>
                 <img
                   src={`https://img.youtube.com/vi/${vidId}/mqdefault.jpg`}
                   alt={vidId}
@@ -106,29 +80,29 @@ export default function VideoLibrary({ videos, currentVideoId, onSelectVideo, on
                 {isActive && (
                   <div style={{
                     position: 'absolute',
-                    top: '6px',
-                    left: '6px',
-                    background: 'rgba(16, 185, 129, 0.9)',
+                    top: '5px',
+                    left: '5px',
+                    background: 'rgba(16, 185, 129, 0.92)',
                     backdropFilter: 'blur(4px)',
                     color: '#ffffff',
-                    fontSize: '0.65rem',
+                    fontSize: '0.62rem',
                     fontWeight: '700',
-                    padding: '2px 6px',
+                    padding: '2px 5px',
                     borderRadius: '4px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '3px',
                   }}>
-                    <CheckCircle size={10} />
+                    <CheckCircle size={9} />
                     <span>ACTIVE</span>
                   </div>
                 )}
               </div>
 
               {/* Card Meta */}
-              <div style={{ padding: '6px 8px' }}>
+              <div style={{ padding: '5px 7px' }}>
                 <div style={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: '600',
                   color: isActive ? '#ffffff' : '#d4d4d8',
                   whiteSpace: 'nowrap',
@@ -141,13 +115,13 @@ export default function VideoLibrary({ videos, currentVideoId, onSelectVideo, on
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.68rem',
+                    gap: '3px',
+                    fontSize: '0.65rem',
                     color: '#a1a1aa',
                     marginTop: '2px',
                   }}>
-                    <MessageSquare size={10} />
-                    <span>{msgCount} messages</span>
+                    <MessageSquare size={9} />
+                    <span>{msgCount} msgs</span>
                   </div>
                 )}
               </div>
@@ -158,3 +132,4 @@ export default function VideoLibrary({ videos, currentVideoId, onSelectVideo, on
     </div>
   );
 }
+

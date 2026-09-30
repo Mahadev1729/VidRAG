@@ -12,13 +12,12 @@ export default function VideoProcessor({ onVideoProcessed, currentVideoId, isPro
     if (!url.trim()) return;
 
     setIsProcessing(true);
-    setStatusMessage('Indexing video with TiDB Vector...');
+    setStatusMessage('Processing video content...');
     setErrorMessage(null);
 
     try {
-      // Backend automatically checks YouTube captions and auto-falls back to Whisper
       const data = await api.processVideo(url, false, 'en');
-      setStatusMessage(data.message || 'Video indexed successfully!');
+      setStatusMessage(data.message || 'Video ready for analysis!');
       onVideoProcessed(data.video_id, url);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to process video.');

@@ -435,7 +435,7 @@ export default function AuthPage({ onAuthSuccess }) {
           color: '#60606a',
         }}>
           <ShieldCheck size={14} color="#a1a1aa" />
-          <span>TiDB Cloud Serverless & JWT Protection</span>
+          <span>Encrypted & Private Workspace</span>
         </div>
 
       </div>

@@ -9,21 +9,21 @@ export default function YouTubePlayer({ videoId }) {
       <div 
         className="glass-panel" 
         style={{ 
-          height: '360px', 
+          height: '240px', 
           display: 'flex', 
           flexDirection: 'column', 
           alignItems: 'center', 
           justifyContent: 'center',
           color: '#52525b',
-          gap: '0.75rem',
+          gap: '0.65rem',
           textAlign: 'center',
-          padding: '2rem'
+          padding: '1.5rem'
         }}
       >
-        <PlayCircle size={42} strokeWidth={1.5} color="#3f3f46" />
+        <PlayCircle size={36} strokeWidth={1.5} color="#3f3f46" />
         <div>
           <h3 style={{ fontSize: '1rem', color: '#a1a1aa', marginBottom: '0.2rem' }}>No Video Loaded</h3>
-          <p style={{ fontSize: '0.8rem', color: '#71717a' }}>Paste a YouTube link above to index.</p>
+          <p style={{ fontSize: '0.8rem', color: '#71717a' }}>Paste a YouTube link above to begin.</p>
         </div>
       </div>
     );

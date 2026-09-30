@@ -125,7 +125,7 @@ export default function ChatInterface({ videoId, isProcessing }) {
           ...prev.filter(m => m.content !== '' || !m.isStreaming),
           {
             role: 'assistant',
-            content: `⚠️ Error: ${fallbackErr.message || 'Failed to generate answer. Please make sure the video is indexed.'}`,
+            content: `⚠️ Error: ${fallbackErr.message || 'Failed to generate answer. Please ensure the video is loaded.'}`,
           },
         ]);
       }
@@ -149,7 +149,7 @@ export default function ChatInterface({ videoId, isProcessing }) {
   ];
 
   return (
-    <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '620px', overflow: 'hidden' }}>
+    <div className="glass-panel chat-panel-container">
       
       {/* Header */}
       <div style={{
@@ -330,7 +330,7 @@ export default function ChatInterface({ videoId, isProcessing }) {
       }}>
         <input
           type="text"
-          placeholder={videoId ? "Ask about this video..." : "Index a video first..."}
+          placeholder={videoId ? "Ask anything about this video..." : "Process a video to start asking questions..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={!videoId || loading || isProcessing}

@@ -30,12 +30,12 @@ export default function AddVideoModal({ isOpen, onClose, onVideoAdded }) {
     if (!url.trim() || isProcessing) return;
 
     setIsProcessing(true);
-    setStatusMessage('Indexing video with TiDB Vector...');
+    setStatusMessage('Processing video content...');
     setErrorMessage('');
 
     try {
       const data = await api.processVideo(url, false, 'en');
-      setStatusMessage(data.message || 'Video indexed successfully!');
+      setStatusMessage(data.message || 'Video ready for analysis!');
       onVideoAdded(data.video_id, url);
       setTimeout(() => {
         setIsProcessing(false);
