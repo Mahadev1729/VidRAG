@@ -12,7 +12,6 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [currentVideoId, setCurrentVideoId] = useState('');
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
-  const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [userVideos, setUserVideos] = useState([]);
@@ -57,10 +56,6 @@ export default function App() {
   const handleSelectVideo = (videoId) => {
     setCurrentVideoId(videoId);
     setCurrentVideoUrl(`https://www.youtube.com/watch?v=${videoId}`);
-  };
-
-  const handleSeek = (seconds) => {
-    setCurrentTimestamp(seconds);
   };
 
   const handleLogout = () => {
@@ -114,7 +109,6 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <YouTubePlayer
               videoId={currentVideoId}
-              currentTimestamp={currentTimestamp}
             />
           </div>
 
@@ -122,7 +116,6 @@ export default function App() {
           <div>
             <ChatInterface
               videoId={currentVideoId}
-              onSeek={handleSeek}
               isProcessing={isProcessing}
             />
           </div>
@@ -138,5 +131,6 @@ export default function App() {
     </div>
   );
 }
+
 
 

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Trash2, Bot, User, Loader2, Play } from 'lucide-react';
+import { Send, Trash2, Bot, User, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 
-export default function ChatInterface({ videoId, onSeek, isProcessing }) {
+export default function ChatInterface({ videoId, isProcessing }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
         setMessages(data.history.map(m => ({
           role: m.role,
           content: m.message,
-          citations: [],
         })));
       }
     } catch (err) {
@@ -52,7 +51,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
     setLoading(true);
 
     let accumulatedContent = '';
-    let accumulatedCitations = [];
 
     try {
       // Add initial streaming placeholder
@@ -61,7 +59,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
         {
           role: 'assistant',
           content: '',
-          citations: [],
           question: query,
           isStreaming: true,
         },
@@ -85,20 +82,7 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
             return next;
           });
         },
-        (citations) => {
-          accumulatedCitations = citations;
-          setMessages(prev => {
-            const next = [...prev];
-            const lastIdx = next.length - 1;
-            if (lastIdx >= 0 && next[lastIdx].role === 'assistant') {
-              next[lastIdx] = {
-                ...next[lastIdx],
-                citations: accumulatedCitations,
-              };
-            }
-            return next;
-          });
-        }
+        null
       );
 
       // Finalize streaming
@@ -109,7 +93,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
           next[lastIdx] = {
             ...next[lastIdx],
             content: accumulatedContent || 'I couldn\'t find information about that in the video transcript.',
-            citations: accumulatedCitations,
             isStreaming: false,
           };
         }
@@ -126,7 +109,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
             next[lastIdx] = {
               role: 'assistant',
               content: response.answer,
-              citations: response.citations || [],
               question: query,
               isStreaming: false,
             };
@@ -135,7 +117,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
           return [...prev, {
             role: 'assistant',
             content: response.answer,
-            citations: response.citations || [],
             question: query,
           }];
         });
@@ -145,7 +126,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
           {
             role: 'assistant',
             content: `⚠️ Error: ${fallbackErr.message || 'Failed to generate answer. Please make sure the video is indexed.'}`,
-            citations: [],
           },
         ]);
       }
@@ -153,7 +133,6 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
       setLoading(false);
     }
   };
-
 
   const handleClearHistory = async () => {
     if (!videoId) return;
@@ -225,7 +204,7 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
             <Bot size={36} color="#3f3f46" />
             <div>
               <h4 style={{ color: '#e4e4e7', marginBottom: '0.2rem', fontSize: '0.95rem' }}>Ask anything</h4>
-              <p style={{ fontSize: '0.8rem', color: '#71717a' }}>Query transcript timestamps or get key insights.</p>
+              <p style={{ fontSize: '0.8rem', color: '#71717a' }}>Ask questions and get instant insights from the video.</p>
             </div>
 
             {/* Quick Suggestions */}
@@ -300,45 +279,11 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
                 color: '#f4f4f5',
               }}>
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
-
-                {/* Timestamp Citations */}
-                {msg.citations && msg.citations.length > 0 && (
-                  <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.45rem' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#71717a', marginBottom: '0.3rem', fontWeight: '600' }}>
-                      Citations:
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      {msg.citations.map((cite, cIdx) => (
-                        <button
-                          key={cIdx}
-                          onClick={() => onSeek(cite.start)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            color: '#ffffff',
-                            borderRadius: '5px',
-                            padding: '2px 7px',
-                            fontSize: '0.72rem',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s',
-                          }}
-                          onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-                          onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.08)'}
-                        >
-                          <Play size={9} fill="#ffffff" />
-                          <span>{cite.timestamp}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           ))
         )}
+
 
         {loading && (
           <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>

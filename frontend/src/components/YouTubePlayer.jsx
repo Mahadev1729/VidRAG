@@ -1,16 +1,8 @@
-import React, { useRef, useEffect } from 'react';
-import { PlayCircle, Clock } from 'lucide-react';
+import React, { useRef } from 'react';
+import { PlayCircle } from 'lucide-react';
 
-export default function YouTubePlayer({ videoId, currentTimestamp }) {
+export default function YouTubePlayer({ videoId }) {
   const iframeRef = useRef(null);
-
-  // Jump to timestamp when changed
-  useEffect(() => {
-    if (iframeRef.current && currentTimestamp !== null && currentTimestamp !== undefined) {
-      const src = `https://www.youtube.com/embed/${videoId}?start=${Math.floor(currentTimestamp)}&autoplay=1&enablejsapi=1`;
-      iframeRef.current.src = src;
-    }
-  }, [currentTimestamp, videoId]);
 
   if (!videoId) {
     return (
@@ -62,22 +54,7 @@ export default function YouTubePlayer({ videoId, currentTimestamp }) {
           allowFullScreen
         />
       </div>
-
-      <div style={{ 
-        padding: '0.65rem 0.85rem', 
-        background: 'rgba(12, 12, 14, 0.8)', 
-        borderTop: '1px solid var(--border-subtle)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: '0.75rem',
-        color: '#71717a'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <Clock size={13} color="#a1a1aa" />
-          <span>Click citations in chat to jump video timestamp</span>
-        </div>
-      </div>
     </div>
   );
 }
+
