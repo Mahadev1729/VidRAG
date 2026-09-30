@@ -51,28 +51,109 @@ export default function ChatInterface({ videoId, onSeek, isProcessing }) {
     if (!customText) setInput('');
     setLoading(true);
 
+    let accumulatedContent = '';
+    let accumulatedCitations = [];
+
     try {
-      const response = await api.askQuestion(videoId, query);
-      const assistantMessage = {
-        role: 'assistant',
-        content: response.answer,
-        citations: response.citations || [],
-        question: query,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (err) {
+      // Add initial streaming placeholder
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: `⚠️ Error: ${err.message || 'Failed to generate answer. Please make sure the video is indexed.'}`,
+          content: '',
           citations: [],
+          question: query,
+          isStreaming: true,
         },
       ]);
+
+      await api.askQuestionStream(
+        videoId,
+        query,
+        (token) => {
+          accumulatedContent += token;
+          setMessages(prev => {
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            if (lastIdx >= 0 && next[lastIdx].role === 'assistant') {
+              next[lastIdx] = {
+                ...next[lastIdx],
+                content: accumulatedContent,
+                isStreaming: true,
+              };
+            }
+            return next;
+          });
+        },
+        (citations) => {
+          accumulatedCitations = citations;
+          setMessages(prev => {
+            const next = [...prev];
+            const lastIdx = next.length - 1;
+            if (lastIdx >= 0 && next[lastIdx].role === 'assistant') {
+              next[lastIdx] = {
+                ...next[lastIdx],
+                citations: accumulatedCitations,
+              };
+            }
+            return next;
+          });
+        }
+      );
+
+      // Finalize streaming
+      setMessages(prev => {
+        const next = [...prev];
+        const lastIdx = next.length - 1;
+        if (lastIdx >= 0 && next[lastIdx].role === 'assistant') {
+          next[lastIdx] = {
+            ...next[lastIdx],
+            content: accumulatedContent || 'I couldn\'t find information about that in the video transcript.',
+            citations: accumulatedCitations,
+            isStreaming: false,
+          };
+        }
+        return next;
+      });
+    } catch (err) {
+      console.warn("Streaming error, falling back to batch request:", err);
+      try {
+        const response = await api.askQuestion(videoId, query);
+        setMessages(prev => {
+          const next = [...prev];
+          const lastIdx = next.length - 1;
+          if (lastIdx >= 0 && next[lastIdx].role === 'assistant') {
+            next[lastIdx] = {
+              role: 'assistant',
+              content: response.answer,
+              citations: response.citations || [],
+              question: query,
+              isStreaming: false,
+            };
+            return next;
+          }
+          return [...prev, {
+            role: 'assistant',
+            content: response.answer,
+            citations: response.citations || [],
+            question: query,
+          }];
+        });
+      } catch (fallbackErr) {
+        setMessages(prev => [
+          ...prev.filter(m => m.content !== '' || !m.isStreaming),
+          {
+            role: 'assistant',
+            content: `⚠️ Error: ${fallbackErr.message || 'Failed to generate answer. Please make sure the video is indexed.'}`,
+            citations: [],
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleClearHistory = async () => {
     if (!videoId) return;

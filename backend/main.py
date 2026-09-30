@@ -38,12 +38,13 @@ from ingestion.youtube_loader import (
 )
 from ingestion.chunker import create_documents_from_segments
 from retrieval.embeddings import get_embedding_model
+from fastapi.responses import FileResponse, StreamingResponse
 from retrieval.vector_store import (
     store_documents_in_tidb,
     get_vector_store_for_video,
     TiDBVectorStore,
 )
-from llm.rag import answer_question
+from llm.rag import answer_question, answer_question_stream
 from llm.summarizer import summarize_transcript
 from utils.auth import (
     register_user,
@@ -306,6 +307,54 @@ def chat_endpoint(
     }
 
 
+@app.post("/api/chat/stream")
+def chat_stream_endpoint(
+    req: ChatRequest,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
+):
+    """
+    Stream answer tokens in real-time using Server-Sent Events (SSE).
+    Sends citations immediately, followed by token deltas (<300ms time to first token).
+    """
+    video_id = req.video_id
+    vector_store = get_vector_store_for_video(video_id)
+
+    if not vector_store:
+        raise HTTPException(
+            status_code=404,
+            detail="Video has not been processed yet. Please index it first.",
+        )
+
+    username = current_user["username"] if current_user else "anonymous"
+    save_chat_message(username=username, video_id=video_id, role="user", message=req.question)
+
+    def event_generator():
+        accumulated_answer = []
+        for token, source_docs in answer_question_stream(vector_store=vector_store, question=req.question):
+            if source_docs:
+                citations = [
+                    {
+                        "start": doc.metadata.get("start", 0.0),
+                        "end": doc.metadata.get("end", 0.0),
+                        "timestamp": format_timestamp(doc.metadata.get("start", 0.0)),
+                        "text": doc.page_content,
+                    }
+                    for doc in source_docs
+                ]
+                yield f"data: {json.dumps({'type': 'citations', 'citations': citations})}\n\n"
+            if token:
+                accumulated_answer.append(token)
+                yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+
+        full_answer = "".join(accumulated_answer)
+        if full_answer:
+            save_chat_message(username=username, video_id=video_id, role="assistant", message=full_answer)
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+
 # ── Summarization Endpoint ───────────────────────────────────────────────────
 
 @app.post("/api/summary")
@@ -408,5 +457,7 @@ for s_dir in STATIC_DIRS:
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    host = os.getenv("HOST", "127.0.0.1")
+    reload = os.getenv("ENV", "development").lower() != "production"
+    uvicorn.run("main:app", host=host, port=port, reload=reload)
 

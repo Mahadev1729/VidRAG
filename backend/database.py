@@ -8,7 +8,9 @@ TiDB Cloud database manager supporting:
 """
 
 import json
+import queue
 import ssl
+import threading
 from typing import Any, Dict, List, Optional, Tuple
 import pymysql
 import pymysql.cursors
@@ -24,34 +26,119 @@ from config import (
 )
 
 
-def get_db_connection() -> pymysql.connections.Connection:
-    """
-    Establish a secure SSL connection to TiDB Cloud using TIDB_DATABASE_URL.
-    """
-    if not TIDB_DATABASE_URL or not TIDB_HOST or not TIDB_USER:
-        raise ValueError(
-            "TiDB connection string is missing! Please set TIDB_DATABASE_URL in your .env file:\n"
-            'TIDB_DATABASE_URL="mysql://<user>:<password>@<host>:4000/<database>"'
+class PooledConnection:
+    """Thread-safe connection wrapper that returns raw connection to pool on close()."""
+
+    def __init__(self, raw_conn: pymysql.connections.Connection, pool: "TiDBConnectionPool"):
+        self._raw_conn = raw_conn
+        self._pool = pool
+        self._closed = False
+
+    def cursor(self, *args, **kwargs):
+        return self._raw_conn.cursor(*args, **kwargs)
+
+    def commit(self):
+        return self._raw_conn.commit()
+
+    def rollback(self):
+        return self._raw_conn.rollback()
+
+    def close(self):
+        if not self._closed and self._pool is not None:
+            self._closed = True
+            self._pool.release(self._raw_conn)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __getattr__(self, name: str):
+        return getattr(self._raw_conn, name)
+
+
+class TiDBConnectionPool:
+    """Reusable connection pool for TiDB Cloud Serverless (eliminates 500ms SSL handshakes)."""
+
+    def __init__(self, max_connections: int = 15):
+        self.max_connections = max_connections
+        self._pool: queue.Queue = queue.Queue(maxsize=max_connections)
+        self._created_count = 0
+        self._lock = threading.Lock()
+
+    def _create_raw_connection(self) -> pymysql.connections.Connection:
+        if not TIDB_DATABASE_URL or not TIDB_HOST or not TIDB_USER:
+            raise ValueError(
+                "TiDB connection string is missing! Please set TIDB_DATABASE_URL in your .env file:\n"
+                'TIDB_DATABASE_URL="mysql://<user>:<password>@<host>:4000/<database>"'
+            )
+
+        ssl_context = ssl.create_default_context()
+        if TIDB_SSL_CA:
+            ssl_context.load_verify_locations(cafile=TIDB_SSL_CA)
+        else:
+            ssl_context.check_hostname = True
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+        return pymysql.connect(
+            host=TIDB_HOST,
+            port=TIDB_PORT,
+            user=TIDB_USER,
+            password=TIDB_PASSWORD,
+            database=TIDB_DATABASE,
+            ssl=ssl_context,
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=True,
+            connect_timeout=10,
+            read_timeout=30,
+            write_timeout=30,
         )
 
-    # SSL context required for TiDB Cloud Serverless
-    ssl_context = ssl.create_default_context()
-    if TIDB_SSL_CA:
-        ssl_context.load_verify_locations(cafile=TIDB_SSL_CA)
-    else:
-        ssl_context.check_hostname = True
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
+    def get_connection(self) -> PooledConnection:
+        conn = None
+        try:
+            conn = self._pool.get_nowait()
+            try:
+                conn.ping(reconnect=True)
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                conn = self._create_raw_connection()
+        except queue.Empty:
+            with self._lock:
+                if self._created_count < self.max_connections:
+                    self._created_count += 1
+                    conn = self._create_raw_connection()
+            if conn is None:
+                conn = self._pool.get(timeout=10)
+                try:
+                    conn.ping(reconnect=True)
+                except Exception:
+                    conn = self._create_raw_connection()
 
-    return pymysql.connect(
-        host=TIDB_HOST,
-        port=TIDB_PORT,
-        user=TIDB_USER,
-        password=TIDB_PASSWORD,
-        database=TIDB_DATABASE,
-        ssl=ssl_context,
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=True,
-    )
+        return PooledConnection(conn, self)
+
+    def release(self, raw_conn: pymysql.connections.Connection):
+        try:
+            self._pool.put_nowait(raw_conn)
+        except queue.Full:
+            try:
+                raw_conn.close()
+            except Exception:
+                pass
+            with self._lock:
+                self._created_count = max(0, self._created_count - 1)
+
+
+_DB_POOL = TiDBConnectionPool(max_connections=15)
+
+
+def get_db_connection() -> PooledConnection:
+    """Acquire a pooled, validated SSL connection to TiDB Cloud instantly (<5ms)."""
+    return _DB_POOL.get_connection()
 
 
 def init_tidb_schema() -> None:
@@ -214,26 +301,69 @@ def clear_chat_history(username: str, video_id: str) -> None:
         conn.close()
 
 
-def get_user_videos(username: str) -> List[str]:
-    """Get list of distinct video IDs the user has chatted about."""
+def get_user_videos(username: str) -> List[Dict[str, Any]]:
+    """Get rich list of distinct videos the user has indexed or chatted about."""
     try:
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
+                # 1. Fetch user's chatted videos
                 cursor.execute(
                     """
-                    SELECT video_id
-                    FROM chat_history
-                    WHERE username = %s
-                    GROUP BY video_id
-                    ORDER BY MAX(id) DESC
+                    SELECT 
+                        c.video_id, 
+                        MAX(c.created_at) AS last_activity,
+                        COUNT(c.id) AS message_count
+                    FROM chat_history c
+                    WHERE c.username = %s
+                    GROUP BY c.video_id
+                    ORDER BY last_activity DESC
                     """,
                     (username,),
                 )
-                rows = cursor.fetchall()
-                return [row["video_id"] for row in rows]
+                chat_rows = cursor.fetchall()
+
+                # 2. Fetch all indexed videos in TiDB
+                cursor.execute(
+                    """
+                    SELECT video_id, MIN(created_at) as indexed_at 
+                    FROM transcript_chunks 
+                    GROUP BY video_id 
+                    ORDER BY indexed_at DESC
+                    LIMIT 30
+                    """
+                )
+                chunk_rows = cursor.fetchall()
+
+                seen = set()
+                results = []
+
+                for r in chat_rows:
+                    vid = r.get("video_id")
+                    if vid and vid not in seen:
+                        seen.add(vid)
+                        results.append({
+                            "video_id": vid,
+                            "thumbnail": f"https://img.youtube.com/vi/{vid}/mqdefault.jpg",
+                            "message_count": r.get("message_count", 0),
+                            "last_active": str(r.get("last_activity", "")),
+                        })
+
+                for r in chunk_rows:
+                    vid = r.get("video_id")
+                    if vid and vid not in seen:
+                        seen.add(vid)
+                        results.append({
+                            "video_id": vid,
+                            "thumbnail": f"https://img.youtube.com/vi/{vid}/mqdefault.jpg",
+                            "message_count": 0,
+                            "last_active": str(r.get("indexed_at", "")),
+                        })
+
+                return results
         finally:
             conn.close()
     except Exception as e:
         print(f"[DB WARNING] get_user_videos failed: {e}")
         return []
+

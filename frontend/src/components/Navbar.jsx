@@ -1,7 +1,7 @@
 import React from 'react';
-import { Sparkles, Database, Youtube, User, LogOut } from 'lucide-react';
+import { Sparkles, Database, Youtube, User, LogOut, Plus } from 'lucide-react';
 
-export default function Navbar({ user, onLogout, onOpenSummary, currentVideoId }) {
+export default function Navbar({ user, onLogout, onOpenAddVideo, currentVideoId }) {
   return (
     <header className="glass-panel" style={{ borderRadius: '0 0 14px 14px', borderTop: 'none', padding: '0.85rem 1.5rem', marginBottom: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -61,32 +61,27 @@ export default function Navbar({ user, onLogout, onOpenSummary, currentVideoId }
 
         {/* User / Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          {currentVideoId && (
+          {onOpenAddVideo && (
             <button
-              onClick={onOpenSummary}
+              onClick={onOpenAddVideo}
+              className="gradient-btn"
               style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid var(--border-subtle)',
-                color: '#ffffff',
-                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '6px 14px',
                 borderRadius: '8px',
-                cursor: 'pointer',
                 fontSize: '0.8rem',
-                fontWeight: '500',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-                e.target.style.background = 'rgba(255, 255, 255, 0.12)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.borderColor = 'var(--border-subtle)';
-                e.target.style.background = 'rgba(255, 255, 255, 0.08)';
+                fontWeight: '600',
+                cursor: 'pointer',
               }}
             >
-              Summary
+              <Plus size={14} />
+              <span>Add Video</span>
             </button>
           )}
+
+
 
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>

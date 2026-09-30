@@ -28,11 +28,15 @@ class FastEmbeddingWrapper:
         embeddings_generator = self.model.embed(texts)
         return [emb.tolist() if hasattr(emb, "tolist") else list(emb) for emb in embeddings_generator]
 
-    def embed_query(self, text: str) -> List[float]:
-        """Embed a single query string."""
+    @lru_cache(maxsize=1024)
+    def _cached_embed_query(self, text: str) -> tuple:
         embedding_generator = self.model.embed([text])
         emb = next(embedding_generator)
-        return emb.tolist() if hasattr(emb, "tolist") else list(emb)
+        return tuple(emb.tolist() if hasattr(emb, "tolist") else list(emb))
+
+    def embed_query(self, text: str) -> List[float]:
+        """Embed a single query string (cached for 0ms repeat latency)."""
+        return list(self._cached_embed_query(text.strip()))
 
 
 @lru_cache(maxsize=1)

@@ -64,7 +64,7 @@ GOOGLE_CLIENT_ID: str = _get_config("GOOGLE_CLIENT_ID", "")
 
 # ── Groq API & LLM ──────────────────────────────────────────────────────────
 GROQ_API_KEY: str = _get_config("GROQ_API_KEY", "")
-GROQ_MODEL: str = _get_config("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_MODEL: str = _get_config("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # Sentence Transformer embeddings
 EMBEDDING_MODEL: str = _get_config(

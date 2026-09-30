@@ -138,6 +138,58 @@ export const api = {
     }
   },
 
+  askQuestionStream: async (videoId, question, onToken, onCitations) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/stream`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          video_id: videoId,
+          question,
+        }),
+      });
+
+      if (!res.ok) {
+        return await handleResponse(res, 'Error streaming answer');
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.type === 'token' && onToken) {
+                onToken(data.token);
+              } else if (data.type === 'citations' && onCitations) {
+                onCitations(data.citations);
+              }
+            } catch (err) {
+              console.warn('SSE parse error:', err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        throw new Error('Backend connection lost. Please verify FastAPI server is running.');
+      }
+      throw err;
+    }
+  },
+
+
   // Summary
   getSummary: async (url) => {
     const res = await fetch(`${API_BASE_URL}/summary`, {

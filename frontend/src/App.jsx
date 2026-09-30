@@ -3,10 +3,10 @@ import Navbar from './components/Navbar';
 import VideoProcessor from './components/VideoProcessor';
 import YouTubePlayer from './components/YouTubePlayer';
 import ChatInterface from './components/ChatInterface';
-import SummaryModal from './components/SummaryModal';
+import AddVideoModal from './components/AddVideoModal';
+import VideoLibrary from './components/VideoLibrary';
 import AuthPage from './components/AuthPage';
 import { getStoredUser, removeAuthToken, removeStoredUser, api } from './services/api';
-import { History, PlaySquare } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -14,7 +14,7 @@ export default function App() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [userVideos, setUserVideos] = useState([]);
 
   // Auto-login from stored session
@@ -34,6 +34,14 @@ export default function App() {
       const data = await api.getUserVideos();
       if (data && data.videos) {
         setUserVideos(data.videos);
+        // If no video is currently selected, select the first recent video
+        if (!currentVideoId && data.videos.length > 0) {
+          const firstVid = typeof data.videos[0] === 'string' ? data.videos[0] : data.videos[0].video_id;
+          if (firstVid) {
+            setCurrentVideoId(firstVid);
+            setCurrentVideoUrl(`https://www.youtube.com/watch?v=${firstVid}`);
+          }
+        }
       }
     } catch (e) {
       console.error(e);
@@ -42,7 +50,13 @@ export default function App() {
 
   const handleVideoProcessed = (videoId, url) => {
     setCurrentVideoId(videoId);
-    setCurrentVideoUrl(url);
+    setCurrentVideoUrl(url || `https://www.youtube.com/watch?v=${videoId}`);
+    loadUserVideos();
+  };
+
+  const handleSelectVideo = (videoId) => {
+    setCurrentVideoId(videoId);
+    setCurrentVideoUrl(`https://www.youtube.com/watch?v=${videoId}`);
   };
 
   const handleSeek = (seconds) => {
@@ -57,7 +71,7 @@ export default function App() {
     setCurrentVideoUrl('');
   };
 
-  // ── 1. Unauthenticated State: Show Professional Clean Auth Page ────────────
+  // ── 1. Unauthenticated State: Show Clean Auth Page ─────────────────────────
   if (!user) {
     return <AuthPage onAuthSuccess={(userData) => setUser(userData)} />;
   }
@@ -68,17 +82,25 @@ export default function App() {
       <Navbar
         user={user}
         onLogout={handleLogout}
-        onOpenSummary={() => setIsSummaryOpen(true)}
+        onOpenAddVideo={() => setIsAddModalOpen(true)}
         currentVideoId={currentVideoId}
       />
 
-      <main className="container-app" style={{ flex: 1 }}>
-        {/* Top Video URL input & Ingestion */}
+      <main className="container-app" style={{ flex: 1, paddingBottom: '2rem' }}>
+        {/* Top Video URL Search & Ingestion Bar */}
         <VideoProcessor
           onVideoProcessed={handleVideoProcessed}
           currentVideoId={currentVideoId}
           isProcessing={isProcessing}
           setIsProcessing={setIsProcessing}
+        />
+
+        {/* Video Library / Switcher Strip */}
+        <VideoLibrary
+          videos={userVideos}
+          currentVideoId={currentVideoId}
+          onSelectVideo={handleSelectVideo}
+          onOpenAddModal={() => setIsAddModalOpen(true)}
         />
 
         {/* Main 2-Column Responsive Layout */}
@@ -88,53 +110,15 @@ export default function App() {
           gap: '1.5rem',
           alignItems: 'start',
         }}>
-          {/* Left Column: Player & History */}
+          {/* Left Column: YouTube Player */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <YouTubePlayer
               videoId={currentVideoId}
               currentTimestamp={currentTimestamp}
             />
-
-            {/* User Session History Videos */}
-            {userVideos.length > 0 && (
-              <div className="glass-panel" style={{ padding: '0.85rem 1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.6rem', fontSize: '0.8rem', color: '#a1a1aa' }}>
-                  <History size={14} color="#ffffff" />
-                  <span style={{ fontWeight: '600' }}>Recent Videos</span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {userVideos.map((vid, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setCurrentVideoId(vid);
-                        setCurrentVideoUrl(`https://www.youtube.com/watch?v=${vid}`);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        background: vid === currentVideoId ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid',
-                        borderColor: vid === currentVideoId ? 'rgba(255, 255, 255, 0.4)' : 'var(--border-subtle)',
-                        borderRadius: '6px',
-                        padding: '4px 10px',
-                        color: vid === currentVideoId ? '#ffffff' : '#a1a1aa',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <PlaySquare size={12} color="#ffffff" />
-                      <span>{vid}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Right Column: Interactive Chat */}
+          {/* Right Column: Interactive AI Chat */}
           <div>
             <ChatInterface
               videoId={currentVideoId}
@@ -145,13 +129,14 @@ export default function App() {
         </div>
       </main>
 
-      {/* Video Summary Modal */}
-      <SummaryModal
-        isOpen={isSummaryOpen}
-        onClose={() => setIsSummaryOpen(false)}
-        videoUrl={currentVideoUrl}
-        videoId={currentVideoId}
+      {/* Add New Video Modal */}
+      <AddVideoModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onVideoAdded={handleVideoProcessed}
       />
     </div>
   );
 }
+
+

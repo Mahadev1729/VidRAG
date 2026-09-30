@@ -6,7 +6,6 @@ Converts transcript segments or text into LangChain Documents with timestamp met
 
 from typing import List, Dict, Any
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from config import CHUNK_SIZE, CHUNK_OVERLAP
 
