@@ -21,11 +21,11 @@ export default function VideoLibrary({ videos, currentVideoId, onSelectVideo }) 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
           <PlaySquare size={15} color="#ffffff" />
           <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#ffffff', letterSpacing: '0.2px' }}>
-            My Videos ({videos.length})
+            Recent Videos ({videos.length})
           </span>
         </div>
         <span style={{ fontSize: '0.72rem', color: '#71717a' }}>
-          Click to switch video & chat
+          Your recent active sessions
         </span>
       </div>
 

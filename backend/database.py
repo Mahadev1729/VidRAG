@@ -338,10 +338,10 @@ def link_user_video(username: str, video_id: str) -> None:
         print(f"[DB WARNING] link_user_video failed: {e}")
 
 
-def get_user_videos(username: str) -> List[Dict[str, Any]]:
+def get_user_videos(username: str, limit: int = 5) -> List[Dict[str, Any]]:
     """
-    Mode B: Strictly Private Library.
-    Returns only the videos that this specific user has personally added or chatted about.
+    Mode B: Strictly Private Recent Videos.
+    Returns only the most recent videos that this specific user has personally added or chatted about.
     """
     if not username or username == "anonymous":
         return []
@@ -360,8 +360,9 @@ def get_user_videos(username: str) -> List[Dict[str, Any]]:
                     FROM user_videos u
                     WHERE u.username = %s
                     ORDER BY u.created_at DESC
+                    LIMIT %s
                     """,
-                    (username.strip(),),
+                    (username.strip(), limit),
                 )
                 rows = cursor.fetchall()
 
@@ -377,8 +378,9 @@ def get_user_videos(username: str) -> List[Dict[str, Any]]:
                         WHERE c.username = %s
                         GROUP BY c.video_id
                         ORDER BY last_activity DESC
+                        LIMIT %s
                         """,
-                        (username.strip(),),
+                        (username.strip(), limit),
                     )
                     rows = cursor.fetchall()
 

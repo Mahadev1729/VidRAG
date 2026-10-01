@@ -427,10 +427,11 @@ def clear_history(
 
 @app.get("/api/user/videos")
 def get_my_videos(
+    limit: int = 5,
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     try:
-        videos = get_user_videos(username=current_user["username"])
+        videos = get_user_videos(username=current_user["username"], limit=limit)
         return {"videos": videos}
     except Exception as e:
         print(f"[API ERROR] /api/user/videos failed: {e}")
