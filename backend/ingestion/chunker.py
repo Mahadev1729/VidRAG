@@ -1,61 +1,42 @@
 """
 backend/ingestion/chunker.py
 ============================
-Converts transcript segments or text into LangChain Documents with timestamp metadata.
+Converts transcript segments or text into LangChain Documents using standard RecursiveCharacterTextSplitter.
 """
 
 from typing import List, Dict, Any
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from config import CHUNK_SIZE, CHUNK_OVERLAP
 
 
 def create_documents_from_segments(segments: List[Dict[str, Any]], video_id: str) -> List[Document]:
     """
-    Convert a list of transcript segments or text into chunked LangChain Documents.
+    Standard Recursive Character Chunking for YouTube Transcripts.
+    Recursively splits on paragraphs, sentences, and words to preserve semantic coherence.
     """
     if not segments:
         return []
 
-    documents = []
-    current_text = []
-    current_length = 0
+    # 1. Reconstruct full transcript text from segments
+    full_text = " ".join(seg.get("text", "").strip() for seg in segments if seg.get("text"))
+    if not full_text.strip():
+        return []
 
-    for seg in segments:
-        text = seg.get("text", "").strip()
-        if not text:
-            continue
+    # 2. Use industry-standard RecursiveCharacterTextSplitter
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        separators=["\n\n", "\n", ". ", " ", ""],
+        length_function=len,
+    )
 
-        if current_length + len(text) > CHUNK_SIZE and current_text:
-            chunk_content = " ".join(current_text)
-            documents.append(
-                Document(
-                    page_content=chunk_content,
-                    metadata={
-                        "video_id": video_id,
-                        "source": "youtube",
-                    }
-                )
-            )
-            # Retain overlap
-            overlap_words = current_text[-max(1, len(current_text) // 5):]
-            current_text = overlap_words + [text]
-            current_length = sum(len(w) for w in current_text)
-        else:
-            current_text.append(text)
-            current_length += len(text) + 1
+    # 3. Create LangChain Documents with video metadata
+    documents = text_splitter.create_documents(
+        texts=[full_text],
+        metadatas=[{"video_id": video_id, "source": "youtube"}],
+    )
 
-    if current_text:
-        chunk_content = " ".join(current_text)
-        documents.append(
-            Document(
-                page_content=chunk_content,
-                metadata={
-                    "video_id": video_id,
-                    "source": "youtube",
-                }
-            )
-        )
-
-    print(f"[CHUNKER] Generated {len(documents)} text chunks for video {video_id}.")
+    print(f"[CHUNKER] Generated {len(documents)} chunks using RecursiveCharacterTextSplitter for video {video_id}.")
     return documents
