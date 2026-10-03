@@ -7,14 +7,12 @@ YouTube URL validation, transcript retrieval, and Whisper fallback.
 import os
 import re
 from typing import List, Dict, Any, Tuple, Optional
-from xml.etree.ElementTree import ParseError
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     NoTranscriptFound,
     TranscriptsDisabled,
     VideoUnavailable,
-    YouTubeRequestFailed,
 )
 
 from ingestion.whisper_loader import (
@@ -26,17 +24,6 @@ from ingestion.whisper_loader import (
 class TranscriptError(Exception):
     """Raised when both YouTube captions and Whisper fallback fail."""
     pass
-
-
-def format_timestamp(seconds: float) -> str:
-    """Convert seconds float/int to MM:SS or HH:MM:SS format."""
-    total_seconds = int(seconds)
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    secs = total_seconds % 60
-    if hours > 0:
-        return f"{hours}:{minutes:02d}:{secs:02d}"
-    return f"{minutes:02d}:{secs:02d}"
 
 
 def extract_video_id(url: str) -> str:

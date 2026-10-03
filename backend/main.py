@@ -34,7 +34,6 @@ from database import (
 from ingestion.youtube_loader import (
     extract_video_id,
     get_transcript_with_timestamps,
-    format_timestamp,
     TranscriptError,
 )
 from ingestion.chunker import create_documents_from_segments
