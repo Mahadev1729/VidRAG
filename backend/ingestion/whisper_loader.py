@@ -436,58 +436,23 @@ def transcribe_audio(
     status_callback=None,
 ) -> list:
     """
-    Transcribe an MP3 file.
-    
-    PRIMARY: Groq Cloud Whisper API (ultra-fast, zero CPU load).
-    FALLBACK: Local Whisper CPU model if Groq is unavailable or rate-limited.
+    Transcribe audio via Groq Cloud Whisper API (whisper-large-v3-turbo).
+    Provides 216x real-time transcription in 2-4 seconds with zero local CPU load.
     """
-    # ── 1. Try Groq Cloud Whisper First ────────────────────────────────────────
-    if GROQ_API_KEY:
-        try:
-            segments = transcribe_with_groq(audio_path, status_callback=status_callback)
-            if segments:
-                print(f"[GROQ_WHISPER] Success — {len(segments)} segments.")
-                return segments
-        except Exception as groq_err:
-            print(f"[GROQ_WHISPER] Cloud Whisper failed: {groq_err}. Falling back to local CPU model...")
-            if status_callback:
-                status_callback("Groq Whisper unavailable. Falling back to local CPU Whisper...")
-
-    # ── 2. Local Whisper Fallback ──────────────────────────────────────────────
-    if status_callback:
-        status_callback("🎙️ Transcribing audio with local Whisper (CPU)...")
-
-    print(f"[WHISPER] Transcribing {audio_path} locally...")
-    model = get_whisper_model()
-
-    try:
-        result = model.transcribe(str(audio_path), fp16=False)
-    except Exception as error:
+    if not GROQ_API_KEY:
         raise WhisperTranscriptionError(
-            "Whisper transcription failed. "
-            "The audio file may be corrupted or unsupported."
-        ) from error
-
-    raw_segments = result.get("segments") or []
-
-    segments = []
-    for item in raw_segments:
-        text = (item.get("text") or "").strip()
-        if not text:
-            continue
-        start = float(item.get("start", 0))
-        end = float(item.get("end", start))
-        duration = max(end - start, 0.0)
-        segments.append({"text": text, "start": start,
-                        "duration": duration, "end": end})
-
-    if not segments:
-        raise WhisperTranscriptionError(
-            "Whisper completed but produced no usable transcript text."
+            "GROQ_API_KEY is not configured in .env. Please set GROQ_API_KEY to use Groq Cloud Whisper."
         )
 
-    print(f"[WHISPER] Transcription complete — {len(segments)} segments.")
-    return segments
+    try:
+        segments = transcribe_with_groq(audio_path, status_callback=status_callback)
+        if segments:
+            print(f"[GROQ_WHISPER] Transcription complete — {len(segments)} segments.")
+            return segments
+        raise WhisperTranscriptionError("Groq Cloud Whisper produced no usable transcript segments.")
+    except Exception as e:
+        print(f"[GROQ_WHISPER ERROR] Transcription failed: {e}")
+        raise WhisperTranscriptionError(f"Groq Cloud Whisper transcription failed: {str(e)}") from e
 
 
 # ── Public Entry Point ────────────────────────────────────────────────────────
