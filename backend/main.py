@@ -295,24 +295,11 @@ def chat_endpoint(
         question=req.question,
     )
 
-    # Format citations
-    citations = []
-    for doc in source_docs:
-        start_sec = doc.metadata.get("start", 0.0)
-        end_sec = doc.metadata.get("end", 0.0)
-        citations.append({
-            "start": start_sec,
-            "end": end_sec,
-            "timestamp": format_timestamp(start_sec),
-            "text": doc.page_content,
-        })
-
     # Save assistant message to TiDB
     save_chat_message(username=username, video_id=video_id, role="assistant", message=answer)
 
     return {
         "answer": answer,
-        "citations": citations,
     }
 
 
@@ -323,7 +310,6 @@ def chat_stream_endpoint(
 ):
     """
     Stream answer tokens in real-time using Server-Sent Events (SSE).
-    Sends citations immediately, followed by token deltas (<300ms time to first token).
     """
     video_id = req.video_id
     vector_store = get_vector_store_for_video(video_id)
@@ -339,18 +325,7 @@ def chat_stream_endpoint(
 
     def event_generator():
         accumulated_answer = []
-        for token, source_docs in answer_question_stream(vector_store=vector_store, question=req.question):
-            if source_docs:
-                citations = [
-                    {
-                        "start": doc.metadata.get("start", 0.0),
-                        "end": doc.metadata.get("end", 0.0),
-                        "timestamp": format_timestamp(doc.metadata.get("start", 0.0)),
-                        "text": doc.page_content,
-                    }
-                    for doc in source_docs
-                ]
-                yield f"data: {json.dumps({'type': 'citations', 'citations': citations})}\n\n"
+        for token, _ in answer_question_stream(vector_store=vector_store, question=req.question):
             if token:
                 accumulated_answer.append(token)
                 yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"

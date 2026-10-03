@@ -41,7 +41,7 @@ def answer_question(
 ### Formatting & Answer Guidelines:
 1. **Direct & Understandable**: Start with a clear, direct answer in 1-2 concise sentences.
 2. **Structured Layout**: When providing explanations, multiple steps, or lists, use bullet points (`-`) or numbered lists (`1.`, `2.`).
-3. **Emphasis**: Use **bold** on key concepts, timestamps, metrics, and important terms for effortless reading.
+3. **Emphasis**: Use **bold** on key concepts, metrics, and important terms for effortless reading.
 4. **Accuracy**: Use ONLY the context provided above. Do not hallucinate or use outside knowledge.
 5. **Missing Information**: If the answer cannot be found in the provided context, state clearly and politely:
    "I couldn't find information about that in the video transcript."
@@ -111,9 +111,6 @@ def answer_question_stream(
         yield "I couldn't find the answer in the video.", []
         return
 
-    # Yield citations immediately
-    yield "", source_docs
-
     context = "\n\n".join(doc.page_content for doc in source_docs)
     prompt = f"""You are an intelligent, articulate AI assistant answering questions about a YouTube video based strictly on its transcript.
 
@@ -128,7 +125,7 @@ def answer_question_stream(
 ### Formatting & Answer Guidelines:
 1. **Direct & Understandable**: Start with a clear, direct answer in 1-2 concise sentences.
 2. **Structured Layout**: When providing explanations, multiple steps, or lists, use bullet points (`-`) or numbered lists (`1.`, `2.`).
-3. **Emphasis**: Use **bold** on key concepts, timestamps, metrics, and important terms for effortless reading.
+3. **Emphasis**: Use **bold** on key concepts, metrics, and important terms for effortless reading.
 4. **Accuracy**: Use ONLY the context provided above. Do not hallucinate or use outside knowledge.
 5. **Missing Information**: If the answer cannot be found in the provided context, state clearly and politely:
    "I couldn't find information about that in the video transcript."

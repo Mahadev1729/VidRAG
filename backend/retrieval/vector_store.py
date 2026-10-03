@@ -53,10 +53,8 @@ class TiDBVectorStore:
                         Document(
                             page_content=row["page_content"],
                             metadata={
-                                "start": row["start_time"],
-                                "end": row["end_time"],
-                                "source": row["source"],
-                                "video_id": row["video_id"],
+                                "source": row.get("source", "youtube"),
+                                "video_id": row.get("video_id", self.video_id),
                                 "distance": float(row.get("distance", 0.0)),
                             },
                         )
